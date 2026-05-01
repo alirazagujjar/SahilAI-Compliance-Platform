@@ -1,0 +1,37 @@
+========================================
+     DUBAI FREIGHT & LOGISTICS LLC
+========================================
+Tax Invoice
+
+Invoice Number : INV-DFL-2024-0847
+Invoice Date   : 2024-03-15
+Due Date       : 2024-04-15
+
+Vendor Details:
+  Name        : Dubai Freight & Logistics LLC
+  TRN         : 100378294500003
+  Address     : Jebel Ali Free Zone, Dubai, UAE
+
+Client Details:
+  Name        : Al Noor Trading Co.
+  TRN         : 100456781200007
+  Address     : Al Quoz Industrial Area, Dubai, UAE
+
+---------------------------------------------------------
+ #   Description                   Qty   Unit    Total
+---------------------------------------------------------
+ 1   Sea Freight - FCL 40ft          2   3500.00  7000.00
+ 2   Port Handling & Documentation   1    800.00   800.00
+ 3   Customs Clearance               1    600.00   600.00
+ 4   Inland Transportation           3    200.00   600.00
+---------------------------------------------------------
+                                    Subtotal : AED 9,000.00
+                                    VAT (5%) :   AED 450.00
+                                  GRAND TOTAL: AED 9,450.00
+---------------------------------------------------------
+
+Payment Terms: 30 days net
+Bank: Emirates NBD | IBAN: AE070260001015689274521
+
+This is a computer-generated invoice valid without signature.
+========================================

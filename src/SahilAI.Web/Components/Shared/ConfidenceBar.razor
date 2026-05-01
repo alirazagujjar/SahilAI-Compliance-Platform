@@ -1,0 +1,18 @@
+@code {
+    [Parameter, EditorRequired] public decimal Score { get; set; }
+
+    private int    Pct       => (int)(Score * 100);
+    private string BarColor  => Score >= 0.90m ? "bg-emerald-500"
+                              : Score >= 0.70m ? "bg-amber-400"
+                              : "bg-red-400";
+    private string TextColor => Score >= 0.90m ? "text-emerald-600"
+                              : Score >= 0.70m ? "text-amber-600"
+                              : "text-red-500";
+}
+
+<div class="flex items-center gap-2 min-w-0">
+    <div class="flex-1 bg-slate-200 rounded-full h-1.5 min-w-0 max-w-[80px]">
+        <div class="@BarColor h-1.5 rounded-full transition-all" style="width: @Pct%"></div>
+    </div>
+    <span class="text-xs font-semibold @TextColor flex-shrink-0">@Pct%</span>
+</div>

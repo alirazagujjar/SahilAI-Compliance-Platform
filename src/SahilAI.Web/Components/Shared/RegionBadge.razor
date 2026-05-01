@@ -1,0 +1,15 @@
+@code {
+    [Parameter, EditorRequired] public string Region { get; set; } = "";
+
+    private string Flag => Region switch
+    {
+        ComplianceRegion.SaudiArabia => "🇸🇦",
+        ComplianceRegion.UAE         => "🇦🇪",
+        ComplianceRegion.USA         => "🇺🇸",
+        _                            => "🌐",
+    };
+}
+
+<span class="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+    @Flag&nbsp;@Region
+</span>

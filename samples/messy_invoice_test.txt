@@ -1,0 +1,71 @@
+From: accounts@khaleejtransport.ae
+To: finance@alnoor-trading.com
+Date: Tue, 15 Apr 2026 09:42:11 +0400
+Subject: Fwd: Fwd: RE: Invoice attached - April shipment
+
+--- Forwarded message ---
+
+Hi Sara,
+
+Please find below the invoice details for the April shipment.
+Sorry for the delay, our system was down last week.
+
+Regards,
+Mohammed Al-Farsi
+Khaleej Transport & Logistics
+
+------- ORIGINAL MESSAGE -------
+
+KHALEEJ TRANSPORT & LOGISTICS LLC
+Dubai Investment Park, Phase 2
+P.O. Box 77341, Dubai, UAE
+Phone: +971 4 885 2200  |  Fax: +971 4 885 2201
+
+    TAX   INVOICE
+
+Inv No.    : KTL-APR-2026-0312
+Date       : April 14th, 2026
+Due        : 14 May 2026
+
+Billed To:
+  Al Noor Trading Company LLC
+  TRN: 100456781200007
+  Al Quoz, Dubai
+
+Our TRN: 1003 7829 4500 003   <-- please use this for your records
+
+---------------------------------------------------------
+DESCRIPTION                    QTY    RATE      AMOUNT
+---------------------------------------------------------
+Sea Freight FCL 40ft            2    3,500.00   7,000.00
+(Singapore to Jebel Ali)
+
+Port Handling Charges           1      800.00     800.00
+
+Customs Clearance Fee           1      600.00     600.00
+  * includes broker fee AED 150
+
+Inland Delivery - Dubai         3      200.00     600.00
+
+Fuel Surcharge (Apr 2026)       1      275.00     275.00
+---------------------------------------------------------
+
+                           Sub Total :    9,275.00
+                           VAT @ 5%  :      463.75
+                         -----------
+                         GRAND TOTAL :    9,738.75  AED
+                         ===========
+
+Payment: Bank Transfer within 30 days
+Bank: Emirates NBD
+IBAN: AE07 0260 0010 1568 9274 521
+Swift: EBILAEAD
+
+Note: Please ignore previous invoice KTL-APR-2026-0298 sent on Apr 10.
+That had a wrong fuel surcharge amount. THIS is the correct one.
+
+For queries: billing@khaleejtransport.ae
+
+------- END OF INVOICE -------
+
+P.S. Mohammed - can you also send the March statement when you get a chance?

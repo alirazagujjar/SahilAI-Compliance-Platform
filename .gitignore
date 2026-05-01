@@ -1,0 +1,25 @@
+# ── Secrets (NEVER commit these) ──────────────────────────
+appsettings.local.json
+appsettings.*.local.json
+*.local.json
+
+# ── .NET build output ─────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# ── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+
+# ── Invoice inbox (runtime data, not source) ──────────────
+inbox/
+
+# ── OS / Editor noise ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/settings.json

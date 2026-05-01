@@ -1,0 +1,56 @@
+فاتورة ضريبية | TAX INVOICE (ZATCA Phase 2 Compliant)
+=======================================================
+
+المورد | SUPPLIER
+------------------
+Company Name (EN): Riyadh Advanced Systems Co.
+اسم الشركة (AR):  شركة الرياض للأنظمة المتقدمة
+VAT Registration No. (الرقم الضريبي): 310122445600003
+CR Number: 1010123456
+Address: King Fahd Road, Al Olaya District, Riyadh 12214, Saudi Arabia
+Phone: +966 11 234 5678
+Email: accounts@riyadhsystems.com.sa
+
+العميل | CUSTOMER
+------------------
+Emirates Global Trading LLC
+TRN: 300456789012345
+P.O. Box 4422, Riyadh, Saudi Arabia
+
+بيانات الفاتورة | INVOICE DETAILS
+-----------------------------------
+Invoice Number  : RAS-2024-KSA-00891
+Invoice Date    : 2024-11-20
+Due Date        : 2024-12-20
+Currency        : SAR (Saudi Riyal)
+Payment Terms   : 30 Days Net
+
+تفاصيل الخدمات | LINE ITEMS
+------------------------------
+Desc.                                  Qty   Unit Price     Total
+------------------------------------------------------------------
+ERP Implementation Services (Phase 1)   1    25,000.00    25,000.00
+Cloud Infrastructure Setup (Annual)     1    12,000.00    12,000.00
+Cybersecurity Assessment & Report       1     8,500.00     8,500.00
+Staff Training (5 days × SAR 1,200)     5     1,200.00     6,000.00
+------------------------------------------------------------------
+
+الإجماليات | TOTALS
+--------------------
+Subtotal (المجموع قبل الضريبة) :  SAR  51,500.00
+VAT 15% (ضريبة القيمة المضافة):  SAR   7,725.00
+                                  ----------------
+Grand Total (الإجمالي شامل الضريبة): SAR 59,225.00
+                                  ================
+
+بيانات البنك | BANK DETAILS
+-----------------------------
+Bank Name : Al Rajhi Bank
+IBAN      : SA4480000045678901234567
+SWIFT     : RJHISARI
+
+ملاحظات | NOTES
+----------------
+This invoice complies with ZATCA Phase 2 e-invoicing requirements.
+All prices are in SAR. VAT at 15% as per Saudi VAT regulations.
+Fatoora UUID will be generated upon system processing.

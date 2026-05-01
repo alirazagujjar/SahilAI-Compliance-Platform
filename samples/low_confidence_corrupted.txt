@@ -1,0 +1,34 @@
+INVOICE / ||||||||| / FATTURA
+
+Noor Al-Majd Tr@ding & Contr@cting Est.
+TRN: 3004  7721  XX00  ???
+P.O. B0x [REDACTED], Abu Dhabi U.A.E
+C0ntact: +971-XX-XXXXXXX
+
+====================================================
+INV0ICE N0.: NMT-2O24-OO7   (letter O not zero - OCR issue)
+DATE: 31/O2/2024              <<<< NOTE: February has no 31st
+CURR: AED / USD (mixed)
+====================================================
+
+DESCRIPTI0N                  QTY     UNIT     T0TAL
+----------------------------------------------------
+Electrical wiring works        1   12,500.00  12,500.00
+Supply of materials            -    4,200.00   4,200.00   *see note
+Labour (15 days x AED ???)    15      ???        ???
+Site supervision               1    2,000.00   2,000.00
+Discount applied                               -500.00
+----------------------------------------------------
+
+SUB-T0TAL:    AED 18,200.00
+TAX (5%):     AED    450.00    <<<< does not match: 18200 * 5% = 910
+-----------
+T0TAL DUE:    AED 19,500.00   <<<< does not match subtotal + tax
+
+* Note: materials billed separately under PO#4471 — may already be paid
+  Do not double-pay. Confirm with accounts before processing.
+
+Authorised by: [signature illegible]
+Stamp: partially visible, cannot confirm company name
+
+DUPLICATE? System shows similar invoice NMT-2024-007 already posted.

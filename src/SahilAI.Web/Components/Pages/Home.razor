@@ -1,0 +1,138 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IInvoiceRepository InvoiceRepo
+
+<PageTitle>Dashboard — Sahil AI</PageTitle>
+
+<div class="space-y-6 max-w-6xl">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">Compliance Dashboard</h1>
+        <p class="text-slate-500 text-sm mt-0.5">Real-time overview of invoice processing across all regions.</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="flex items-center gap-2 text-slate-400 text-sm py-8">
+            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            Loading stats&hellip;
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            @StatCard("Total",     Total,              "slate")
+            @StatCard("Valid",     Count("VALID"),     "emerald")
+            @StatCard("Review",    Count("REVIEW"),    "amber")
+            @StatCard("Flagged",   Count("FLAGGED"),   "orange")
+            @StatCard("Duplicate", Count("DUPLICATE"), "red")
+            @StatCard("Approved",  Count("APPROVED"),  "indigo")
+        </div>
+
+        @if (Count("REVIEW") > 0)
+        {
+            <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-3">
+                <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-sm text-amber-800 flex-1">
+                    <strong>@Count("REVIEW") invoice@(Count("REVIEW") == 1 ? "" : "s")</strong> awaiting human review.
+                </p>
+                <a href="/review" class="text-sm font-semibold text-amber-700 hover:text-amber-900 transition-colors">
+                    Go to Review Queue &rarr;
+                </a>
+            </div>
+        }
+
+        @if (flagged.Any())
+        {
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-slate-700">Recent Flagged &amp; Duplicates</h2>
+                    <span class="text-xs text-slate-400">@flagged.Count() records</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
+                                <th class="px-6 py-3 text-left font-medium">Invoice #</th>
+                                <th class="px-6 py-3 text-left font-medium">Vendor</th>
+                                <th class="px-6 py-3 text-left font-medium">Region</th>
+                                <th class="px-6 py-3 text-right font-medium">Amount</th>
+                                <th class="px-6 py-3 text-left font-medium">Status</th>
+                                <th class="px-6 py-3 text-left font-medium">Received</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            @foreach (var inv in flagged.Take(10))
+                            {
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-3 font-mono text-xs text-indigo-600 font-medium">@inv.InvoiceNumber</td>
+                                    <td class="px-6 py-3 text-slate-700 max-w-xs truncate">@inv.VendorName</td>
+                                    <td class="px-6 py-3"><RegionBadge Region="@inv.Region" /></td>
+                                    <td class="px-6 py-3 text-right text-slate-600 font-medium">@inv.Currency @inv.GrandTotal.ToString("N2")</td>
+                                    <td class="px-6 py-3"><StatusBadge Status="@inv.Status" /></td>
+                                    <td class="px-6 py-3 text-slate-400 text-xs">@inv.CreatedAt.ToString("dd MMM yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bg-white rounded-xl border border-slate-100 py-16 text-center">
+                <p class="text-slate-400 text-sm">No flagged or duplicate invoices. System is clean.</p>
+            </div>
+        }
+    }
+</div>
+
+@* Inline stat card — avoids creating a separate file for this trivial component *@
+@code {
+    private IReadOnlyDictionary<string, int>? counts;
+    private IEnumerable<Invoice> flagged = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var t1 = InvoiceRepo.GetStatusCountsAsync();
+        var t2 = InvoiceRepo.GetFlaggedAsync();
+        await Task.WhenAll(t1, t2);
+        counts  = await t1;
+        flagged = await t2;
+        isLoading = false;
+    }
+
+    private int Total            => counts?.Values.Sum() ?? 0;
+    private int Count(string key) => counts?.TryGetValue(key, out var v) == true ? v : 0;
+
+    private RenderFragment StatCard(string Label, int Value, string Color) => __builder =>
+    {
+        var (bg, text, border) = Color switch
+        {
+            "emerald" => ("bg-emerald-50", "text-emerald-700", "border-emerald-100"),
+            "amber"   => ("bg-amber-50",   "text-amber-700",   "border-amber-100"),
+            "orange"  => ("bg-orange-50",  "text-orange-700",  "border-orange-100"),
+            "red"     => ("bg-red-50",     "text-red-700",     "border-red-100"),
+            "indigo"  => ("bg-indigo-50",  "text-indigo-700",  "border-indigo-100"),
+            _         => ("bg-white",      "text-slate-700",   "border-slate-200"),
+        };
+
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", $"{bg} rounded-xl border {border} p-5 text-center");
+        __builder.OpenElement(2, "p");
+        __builder.AddAttribute(3, "class", $"text-3xl font-bold {text}");
+        __builder.AddContent(4, Value.ToString());
+        __builder.CloseElement();
+        __builder.OpenElement(5, "p");
+        __builder.AddAttribute(6, "class", "text-xs text-slate-500 mt-1 font-medium uppercase tracking-wide");
+        __builder.AddContent(7, Label);
+        __builder.CloseElement();
+        __builder.CloseElement();
+    };
+}

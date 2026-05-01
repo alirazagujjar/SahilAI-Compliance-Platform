@@ -1,0 +1,356 @@
+@page "/review/{Id:int}"
+@rendermode InteractiveServer
+@inject IInvoiceRepository InvoiceRepo
+@inject IInvoiceLineItemRepository LineItemRepo
+@inject IReviewApprovalService ApprovalService
+@inject IConfiguration Config
+@inject NavigationManager Nav
+
+<PageTitle>@(invoice?.InvoiceNumber ?? "Loading…") — Sahil AI</PageTitle>
+
+@if (isLoading)
+{
+    <div class="flex items-center justify-center h-64 gap-3 text-slate-400">
+        <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+        <span class="text-sm">Loading invoice…</span>
+    </div>
+}
+else if (invoice is null)
+{
+    <div class="text-center py-24">
+        <p class="text-slate-500 text-lg">Invoice not found.</p>
+        <a href="/review" class="text-indigo-600 hover:underline text-sm mt-3 inline-block">← Back to Review Queue</a>
+    </div>
+}
+else
+{
+    <div class="flex flex-col -mx-6 -mt-6" style="height: calc(100vh - 44px)">
+
+        <!-- ── Top bar ──────────────────────────────────────────────────────── -->
+        <div class="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4">
+            <a href="/review"
+               class="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Review Queue
+            </a>
+            <div class="h-4 w-px bg-slate-200 flex-shrink-0"></div>
+
+            <div class="flex-1 min-w-0 flex items-center gap-3">
+                <span class="font-mono text-sm font-bold text-slate-800 truncate">@invoice.InvoiceNumber</span>
+                <span class="text-slate-400 text-xs truncate hidden sm:block">@invoice.VendorName</span>
+                <StatusBadge Status="@invoice.Status" />
+            </div>
+
+            @if (successMessage is not null)
+            {
+                <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1 flex-shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    @successMessage
+                </span>
+            }
+            @if (errorMessage is not null)
+            {
+                <span class="text-xs text-red-500 font-medium flex-shrink-0">⚠ @errorMessage</span>
+            }
+
+            @if (invoice.Status == InvoiceStatus.Review)
+            {
+                <button @onclick="ApproveAsync" disabled="@isApproving"
+                        class="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700
+                               disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm
+                               font-semibold rounded-lg transition-colors flex-shrink-0 shadow-sm">
+                    @if (isApproving)
+                    {
+                        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                        </svg>
+                        <span>Approving…</span>
+                    }
+                    else
+                    {
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Approve &amp; Validate</span>
+                    }
+                </button>
+            }
+            else
+            {
+                <span class="px-4 py-2 bg-slate-100 text-slate-400 text-xs rounded-lg flex-shrink-0">
+                    Already @invoice.Status
+                </span>
+            }
+        </div>
+
+        <!-- ── Split body ───────────────────────────────────────────────────── -->
+        <div class="flex-1 overflow-hidden grid" style="grid-template-columns: 55% 45%">
+
+            <!-- Left: original document viewer -->
+            <div class="flex flex-col border-r border-slate-200 bg-slate-100 overflow-hidden">
+                <div class="flex-shrink-0 flex items-center justify-between px-4 py-1.5 bg-slate-200/70 text-xs text-slate-500">
+                    <span class="font-medium">
+                        Original Document
+                        @if (!string.IsNullOrEmpty(fileExt))
+                        {<span>&nbsp;&middot;&nbsp;<span class="font-mono bg-slate-300 rounded px-1">@fileExt.TrimStart('.').ToUpperInvariant()</span></span>}
+                    </span>
+                    <span class="font-mono truncate max-w-[200px]">@Path.GetFileName(invoice.SourceFile)</span>
+                </div>
+
+                <div class="flex-1 overflow-auto">
+                    @if (fileExt == ".pdf")
+                    {
+                        <iframe src="/api/files/@Id" class="w-full border-0"
+                                style="height: 100%; min-height: 500px" title="Invoice document" />
+                    }
+                    else if (fileExt is ".png" or ".jpg" or ".jpeg")
+                    {
+                        <div class="flex items-start justify-center p-4">
+                            <img src="/api/files/@Id" alt="Invoice" class="max-w-full shadow rounded" />
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(textContent))
+                    {
+                        <div class="p-5">
+                            <pre class="text-xs font-mono text-slate-700 whitespace-pre-wrap leading-relaxed">@textContent</pre>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center justify-center h-full text-slate-400 text-sm py-20">
+                            <div class="text-center">
+                                <p>Preview not available</p>
+                                <p class="text-xs mt-1 text-slate-300">@Path.GetFileName(invoice.SourceFile)</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Right: extracted data -->
+            <div class="overflow-auto bg-white">
+                <div class="p-6 space-y-6">
+
+                    <!-- Confidence + region -->
+                    <div class="bg-slate-50 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">AI Extraction</span>
+                            <RegionBadge Region="@invoice.Region" />
+                        </div>
+                        <ConfidenceBar Score="@invoice.ConfidenceScore" />
+                        <p class="text-xs text-slate-400">
+                            @invoice.FileType file &middot; Language: @invoice.DocumentLanguage
+                            &middot; Received @invoice.CreatedAt.ToString("dd MMM yyyy HH:mm") UTC
+                        </p>
+                    </div>
+
+                    <!-- Invoice details -->
+                    <section class="space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Invoice Details</h3>
+                        <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
+                            @DetailRow("Invoice #",   invoice.InvoiceNumber,        mono: true)
+                            @DetailRow("Vendor",      invoice.VendorName)
+                            @DetailRow("TRN",         invoice.VendorTrn,             mono: true)
+                            @DetailRow("Date",        invoice.InvoiceDate.ToString("dd MMMM yyyy"))
+                            @DetailRow("Currency",    invoice.Currency)
+                        </dl>
+                    </section>
+
+                    <!-- Financials -->
+                    <section class="space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Financials</h3>
+                        <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
+                            @DetailRow("Subtotal",    invoice.Subtotal.ToString("N2"))
+                            @DetailRow($"Tax ({(invoice.TaxRate * 100):F0}%)", invoice.TaxAmount.ToString("N2"))
+                        </dl>
+                        <div class="flex items-center justify-between bg-slate-800 text-white rounded-xl px-4 py-3 text-sm font-semibold">
+                            <span>Grand Total</span>
+                            <span>@invoice.Currency @invoice.GrandTotal.ToString("N2")</span>
+                        </div>
+                    </section>
+
+                    <!-- Line items -->
+                    @if (lineItems.Any())
+                    {
+                        <section class="space-y-2">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                Line Items (@lineItems.Count())
+                            </h3>
+                            <div class="rounded-xl border border-slate-100 overflow-hidden">
+                                <table class="min-w-full text-xs">
+                                    <thead class="bg-slate-50 text-slate-400 uppercase tracking-wide">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-medium w-8">#</th>
+                                            <th class="px-3 py-2 text-left font-medium">Description</th>
+                                            <th class="px-3 py-2 text-right font-medium">Qty</th>
+                                            <th class="px-3 py-2 text-right font-medium">Unit</th>
+                                            <th class="px-3 py-2 text-right font-medium">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-50">
+                                        @foreach (var li in lineItems)
+                                        {
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="px-3 py-2 text-slate-300">@li.LineNumber</td>
+                                                <td class="px-3 py-2 text-slate-600 max-w-[150px] truncate" title="@li.Description">@li.Description</td>
+                                                <td class="px-3 py-2 text-right text-slate-500">@li.Quantity.ToString("F2")</td>
+                                                <td class="px-3 py-2 text-right text-slate-500">@li.UnitPrice.ToString("N2")</td>
+                                                <td class="px-3 py-2 text-right font-semibold text-slate-700">@li.LineTotal.ToString("N2")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    }
+
+                    <!-- Anomalies -->
+                    @if (anomalies.Any())
+                    {
+                        <section class="space-y-2">
+                            <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                                ⚠ Anomalies (@anomalies.Count)
+                            </h3>
+                            <ul class="space-y-1">
+                                @foreach (var a in anomalies)
+                                {
+                                    <li class="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs font-mono text-red-700">
+                                        @a
+                                    </li>
+                                }
+                            </ul>
+                        </section>
+                    }
+
+                    <!-- ZATCA compliance panel -->
+                    @if (!string.IsNullOrEmpty(invoice.XmlHash))
+                    {
+                        <section class="space-y-2">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ZATCA Compliance</h3>
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-1.5 text-xs">
+                                <p class="text-emerald-700 font-semibold">✓ UBL 2.1 XML generated</p>
+                                <p class="text-emerald-600 font-mono break-all">
+                                    Hash: @invoice.XmlHash[..Math.Min(32, invoice.XmlHash.Length)]…
+                                </p>
+                                @if (!string.IsNullOrEmpty(invoice.PreviousInvoiceHash))
+                                {
+                                    <p class="text-emerald-500 font-mono break-all">
+                                        PIH: @invoice.PreviousInvoiceHash[..Math.Min(24, invoice.PreviousInvoiceHash.Length)]…
+                                    </p>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    @if (!string.IsNullOrEmpty(invoice.QrCodeBase64))
+                    {
+                        <section class="space-y-2">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">QR Payload</h3>
+                            <div class="bg-slate-50 rounded-xl p-3">
+                                <p class="text-xs font-mono text-slate-400 break-all">@invoice.QrCodeBase64[..Math.Min(60, invoice.QrCodeBase64.Length)]…</p>
+                            </div>
+                        </section>
+                    }
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Invoice? invoice;
+    private IEnumerable<InvoiceLineItem> lineItems = [];
+    private List<string> anomalies = [];
+    private string textContent = "";
+    private string fileExt     = "";
+    private bool isLoading     = true;
+    private bool isApproving   = false;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        invoice   = await InvoiceRepo.GetByIdAsync(Id);
+        lineItems = invoice is not null ? await LineItemRepo.GetByInvoiceIdAsync(Id) : [];
+        anomalies = ParseAnomalies(invoice?.AnomalyFlags);
+        fileExt   = Path.GetExtension(invoice?.SourceFile ?? "").ToLowerInvariant();
+        await LoadTextPreviewAsync();
+        isLoading = false;
+    }
+
+    private async Task ApproveAsync()
+    {
+        isApproving  = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        var result = await ApprovalService.ApproveAsync(Id, "web-operator");
+
+        if (result.Success)
+        {
+            successMessage = result.Message;
+            if (invoice is not null) invoice.Status = InvoiceStatus.Valid;
+            StateHasChanged();
+            await Task.Delay(2000);
+            Nav.NavigateTo("/review");
+        }
+        else
+        {
+            errorMessage = result.Message;
+            isApproving  = false;
+        }
+    }
+
+    private async Task LoadTextPreviewAsync()
+    {
+        if (invoice is null) return;
+        if (fileExt is not (".txt" or "" or ".csv")) return;
+
+        var reviewPath  = Config["Watcher:ReviewPath"]  ?? "processed/review";
+        var successPath = Config["Watcher:SuccessPath"] ?? "processed/success";
+        var fileName    = Path.GetFileName(invoice.SourceFile ?? "");
+        var candidates  = new[]
+        {
+            invoice.SourceFile ?? "",
+            Path.Combine(reviewPath,  fileName),
+            Path.Combine(successPath, fileName),
+        };
+        var path = candidates.FirstOrDefault(File.Exists);
+        if (path is not null)
+            textContent = await File.ReadAllTextAsync(path);
+    }
+
+    private static List<string> ParseAnomalies(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return [];
+        try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; }
+        catch { return []; }
+    }
+
+    private RenderFragment DetailRow(string label, string? value, bool mono = false) => __builder =>
+    {
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", "flex items-center justify-between px-4 py-2.5 bg-white gap-4");
+        __builder.OpenElement(2, "dt");
+        __builder.AddAttribute(3, "class", "text-slate-400 flex-shrink-0");
+        __builder.AddContent(4, label);
+        __builder.CloseElement();
+        __builder.OpenElement(5, "dd");
+        __builder.AddAttribute(6, "class", $"text-right text-slate-700 font-medium truncate max-w-[200px]{(mono ? " font-mono text-xs" : "")}");
+        __builder.AddAttribute(7, "title", value);
+        __builder.AddContent(8, value ?? "—");
+        __builder.CloseElement();
+        __builder.CloseElement();
+    };
+}
