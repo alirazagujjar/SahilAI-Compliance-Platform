@@ -1,4 +1,5 @@
 @page "/review/{Id:int}"
+@page "/processed/{Id:int}"
 @rendermode InteractiveServer
 @inject IInvoiceRepository InvoiceRepo
 @inject IInvoiceLineItemRepository LineItemRepo
@@ -31,12 +32,12 @@ else
 
         <!-- ── Top bar ──────────────────────────────────────────────────────── -->
         <div class="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4">
-            <a href="/review"
+            <a href="@backHref"
                class="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                 </svg>
-                Review Queue
+                @backLabel
             </a>
             <div class="h-4 w-px bg-slate-200 flex-shrink-0"></div>
 
@@ -230,33 +231,103 @@ else
                         </section>
                     }
 
-                    <!-- ZATCA compliance panel -->
-                    @if (!string.IsNullOrEmpty(invoice.XmlHash))
+                    <!-- ZATCA Compliance Certificate -->
+                    @if (!string.IsNullOrEmpty(invoice.QrCodeBase64))
+                    {
+                        <section class="space-y-3">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ZATCA Compliance Certificate</h3>
+
+                            <div class="rounded-2xl overflow-hidden border border-emerald-200 shadow-sm">
+                                <!-- Certificate header -->
+                                <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                                        </svg>
+                                        <span class="text-xs font-bold text-white tracking-widest">ZATCA PHASE 2 COMPLIANT</span>
+                                    </div>
+                                    <span class="text-white/70 text-sm">🇸🇦</span>
+                                </div>
+
+                                <!-- QR code centered -->
+                                <div class="bg-gradient-to-b from-emerald-50 to-white flex flex-col items-center py-6 px-4 gap-3">
+                                    <div class="bg-white p-3 rounded-2xl shadow-md border border-emerald-100">
+                                        <img src="/api/qr/@Id"
+                                             alt="ZATCA QR Code"
+                                             class="w-44 h-44 object-contain"
+                                             onerror="this.closest('div').innerHTML='<p class=\'text-xs text-slate-300 text-center p-4\'>QR preview unavailable</p>'" />
+                                    </div>
+                                    <p class="text-xs text-emerald-700 font-medium text-center">
+                                        Scan with ZATCA app to verify authenticity
+                                    </p>
+                                </div>
+
+                                <!-- Hash chain -->
+                                <div class="bg-white px-4 pb-4 space-y-2">
+                                    @if (!string.IsNullOrEmpty(invoice.XmlHash))
+                                    {
+                                        <div class="flex items-center justify-between text-xs py-1.5 border-b border-slate-50">
+                                            <span class="text-slate-400 font-medium flex items-center gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                                                XML Hash
+                                            </span>
+                                            <span class="font-mono text-emerald-700 truncate max-w-[180px]" title="@invoice.XmlHash">
+                                                @invoice.XmlHash[..Math.Min(28, invoice.XmlHash.Length)]…
+                                            </span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(invoice.PreviousInvoiceHash))
+                                    {
+                                        var isGenesis = invoice.PreviousInvoiceHash == "NwZlOopR4nCPVvQ2ubidbc+fBcMVDDjzFMCaFiUVnFI=";
+                                        <div class="flex items-center justify-between text-xs py-1.5">
+                                            <span class="text-slate-400 font-medium flex items-center gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block"></span>
+                                                PIH Chain
+                                            </span>
+                                            <span class="font-mono @(isGenesis ? "text-teal-600" : "text-slate-600") truncate max-w-[180px]"
+                                                  title="@invoice.PreviousInvoiceHash">
+                                                @(isGenesis
+                                                    ? "⛓ Genesis Block"
+                                                    : invoice.PreviousInvoiceHash[..Math.Min(24, invoice.PreviousInvoiceHash.Length)] + "…")
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Download XML -->
+                            @if (!string.IsNullOrEmpty(invoice.XmlPath))
+                            {
+                                <a href="/api/xml/@Id"
+                                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download UBL 2.1 XML
+                                </a>
+                            }
+                        </section>
+                    }
+                    else if (!string.IsNullOrEmpty(invoice.XmlHash))
                     {
                         <section class="space-y-2">
                             <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ZATCA Compliance</h3>
-                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-1.5 text-xs">
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-xs space-y-1">
                                 <p class="text-emerald-700 font-semibold">✓ UBL 2.1 XML generated</p>
-                                <p class="text-emerald-600 font-mono break-all">
+                                <p class="font-mono text-emerald-600 truncate" title="@invoice.XmlHash">
                                     Hash: @invoice.XmlHash[..Math.Min(32, invoice.XmlHash.Length)]…
                                 </p>
-                                @if (!string.IsNullOrEmpty(invoice.PreviousInvoiceHash))
-                                {
-                                    <p class="text-emerald-500 font-mono break-all">
-                                        PIH: @invoice.PreviousInvoiceHash[..Math.Min(24, invoice.PreviousInvoiceHash.Length)]…
-                                    </p>
-                                }
                             </div>
-                        </section>
-                    }
-
-                    @if (!string.IsNullOrEmpty(invoice.QrCodeBase64))
-                    {
-                        <section class="space-y-2">
-                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">QR Payload</h3>
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <p class="text-xs font-mono text-slate-400 break-all">@invoice.QrCodeBase64[..Math.Min(60, invoice.QrCodeBase64.Length)]…</p>
-                            </div>
+                            @if (!string.IsNullOrEmpty(invoice.XmlPath))
+                            {
+                                <a href="/api/xml/@Id"
+                                   class="flex items-center justify-center gap-2 w-full py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download UBL 2.1 XML
+                                </a>
+                            }
                         </section>
                     }
 
@@ -278,6 +349,10 @@ else
     private bool isApproving   = false;
     private string? successMessage;
     private string? errorMessage;
+
+    private bool   isProcessedRoute => Nav.Uri.Contains("/processed/");
+    private string backHref  => isProcessedRoute ? "/processed" : "/review";
+    private string backLabel => isProcessedRoute ? "Processed Invoices" : "Review Queue";
 
     protected override async Task OnInitializedAsync()
     {
@@ -303,7 +378,7 @@ else
             if (invoice is not null) invoice.Status = InvoiceStatus.Valid;
             StateHasChanged();
             await Task.Delay(2000);
-            Nav.NavigateTo("/review");
+            Nav.NavigateTo("/processed");
         }
         else
         {

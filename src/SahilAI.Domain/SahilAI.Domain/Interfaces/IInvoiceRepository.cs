@@ -29,4 +29,10 @@ public interface IInvoiceRepository
 
     /// Returns invoice counts grouped by status — used by the dashboard.
     Task<IReadOnlyDictionary<string, int>> GetStatusCountsAsync();
+
+    /// Returns VALID + APPROVED invoices ordered most-recent-first.
+    Task<IEnumerable<Invoice>> GetProcessedAsync();
+
+    /// Returns NOT_SUPPORTED_FORMAT invoices (files the LLM could not process).
+    Task<IEnumerable<Invoice>> GetNotSupportedAsync();
 }

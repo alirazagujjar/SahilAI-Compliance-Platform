@@ -150,4 +150,28 @@ public sealed class MariaDbInvoiceRepository : IInvoiceRepository
         var rows = await conn.QueryAsync<(string Status, int Cnt)>(sql);
         return rows.ToDictionary(r => r.Status, r => r.Cnt);
     }
+
+    public async Task<IEnumerable<Invoice>> GetProcessedAsync()
+    {
+        const string sql = """
+            SELECT * FROM Invoices
+            WHERE Status IN ('VALID', 'APPROVED')
+            ORDER BY CreatedAt DESC
+            LIMIT 200;
+            """;
+        await using var conn = new MySqlConnection(_connectionString);
+        return await conn.QueryAsync<Invoice>(sql);
+    }
+
+    public async Task<IEnumerable<Invoice>> GetNotSupportedAsync()
+    {
+        const string sql = """
+            SELECT * FROM Invoices
+            WHERE Status = 'NOT_SUPPORTED_FORMAT'
+            ORDER BY CreatedAt DESC
+            LIMIT 100;
+            """;
+        await using var conn = new MySqlConnection(_connectionString);
+        return await conn.QueryAsync<Invoice>(sql);
+    }
 }
