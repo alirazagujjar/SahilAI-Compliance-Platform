@@ -35,4 +35,9 @@ public interface IInvoiceRepository
 
     /// Returns NOT_SUPPORTED_FORMAT invoices (files the LLM could not process).
     Task<IEnumerable<Invoice>> GetNotSupportedAsync();
+
+    /// Patches the operator-corrected core fields before approval.
+    Task UpdateCoreFieldsAsync(int id, string invoiceNumber, string vendorName, string vendorTrn,
+        DateTime invoiceDate, decimal subtotal, decimal taxAmount, decimal grandTotal,
+        decimal taxRate, string currency);
 }

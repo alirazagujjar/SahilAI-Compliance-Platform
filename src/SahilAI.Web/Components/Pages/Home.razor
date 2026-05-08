@@ -1,28 +1,56 @@
 @page "/"
 @rendermode InteractiveServer
 @inject IInvoiceRepository InvoiceRepo
+@inject LiveCountService LiveCounts
+@implements IDisposable
 
 <PageTitle>Dashboard — Sahil AI</PageTitle>
 
 <div class="space-y-6 max-w-6xl">
 
-    <div>
-        <h1 class="text-2xl font-bold text-slate-800">Compliance Dashboard</h1>
-        <p class="text-slate-500 text-sm mt-0.5">Real-time overview of invoice processing across all regions.</p>
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Compliance Dashboard</h1>
+            <p class="text-slate-500 text-sm mt-0.5">Real-time overview of invoice processing across all regions.</p>
+        </div>
+        <!-- Live indicator -->
+        <div class="flex items-center gap-2 text-sm @(LiveCounts.IsReady ? "text-emerald-600" : "text-slate-400")">
+            @if (LiveCounts.IsReady)
+            {
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span class="font-medium">Live — updates every 3 s</span>
+            }
+            else
+            {
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                <span>Connecting…</span>
+            }
+        </div>
     </div>
 
     @if (isLoading)
     {
-        <div class="flex items-center gap-2 text-slate-400 text-sm py-8">
-            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-            Loading stats&hellip;
+        <!-- Skeleton -->
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            @for (var i = 0; i < 6; i++)
+            {
+                <div class="bg-white rounded-xl border border-slate-100 p-5 animate-pulse">
+                    <div class="h-8 bg-slate-100 rounded mb-2"></div>
+                    <div class="h-3 bg-slate-50 rounded w-2/3 mx-auto"></div>
+                </div>
+            }
         </div>
     }
     else
     {
+        <!-- Stat cards — values come from LiveCountService after first poll -->
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             @StatCard("Total",     Total,              "slate")
             @StatCard("Valid",     Count("VALID"),     "emerald")
@@ -32,6 +60,7 @@
             @StatCard("Approved",  Count("APPROVED"),  "indigo")
         </div>
 
+        <!-- Review queue alert -->
         @if (Count("REVIEW") > 0)
         {
             <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-3">
@@ -47,6 +76,27 @@
             </div>
         }
 
+        <!-- Recently arrived notification banner -->
+        @if (recentArrivals.Count > 0)
+        {
+            <div class="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
+                <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+                </svg>
+                <p class="text-sm text-indigo-800 flex-1">
+                    <strong>@recentArrivals.Count new invoice@(recentArrivals.Count == 1 ? "" : "s")</strong> arrived since you loaded this page:
+                    @string.Join(", ", recentArrivals.TakeLast(3).Select(i => i.InvoiceNumber))
+                    @if (recentArrivals.Count > 3) { <span> +@(recentArrivals.Count - 3) more</span> }
+                </p>
+                <button @onclick="() => recentArrivals.Clear()"
+                        class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">
+                    Dismiss
+                </button>
+            </div>
+        }
+
+        <!-- Flagged / Duplicate table -->
         @if (flagged.Any())
         {
             <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -92,28 +142,48 @@
     }
 </div>
 
-@* Inline stat card — avoids creating a separate file for this trivial component *@
 @code {
-    private IReadOnlyDictionary<string, int>? counts;
     private IEnumerable<Invoice> flagged = [];
     private bool isLoading = true;
+    private readonly List<Invoice> recentArrivals = [];
 
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        var t1 = InvoiceRepo.GetStatusCountsAsync();
-        var t2 = InvoiceRepo.GetFlaggedAsync();
-        await Task.WhenAll(t1, t2);
-        counts  = await t1;
-        flagged = await t2;
+        // Subscribe to live events before awaiting so we never miss a tick
+        LiveCounts.CountsChanged    += OnCountsChanged;
+        LiveCounts.NewReviewInvoice += OnNewReviewInvoice;
+
+        // Load flagged list (static, only updated on refresh)
+        flagged   = await InvoiceRepo.GetFlaggedAsync();
         isLoading = false;
     }
 
-    private int Total            => counts?.Values.Sum() ?? 0;
-    private int Count(string key) => counts?.TryGetValue(key, out var v) == true ? v : 0;
+    // ── Live event handlers ───────────────────────────────────────────────────
+    private void OnCountsChanged()
+        => InvokeAsync(StateHasChanged);
 
-    private RenderFragment StatCard(string Label, int Value, string Color) => __builder =>
+    private void OnNewReviewInvoice(Invoice inv)
     {
-        var (bg, text, border) = Color switch
+        recentArrivals.Add(inv);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        LiveCounts.CountsChanged    -= OnCountsChanged;
+        LiveCounts.NewReviewInvoice -= OnNewReviewInvoice;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Read from LiveCountService (updated every 3 s by InvoicePollingService)
+    private int Total              => LiveCounts.Counts.Values.Sum();
+    private int Count(string key)  => LiveCounts.Counts.TryGetValue(key, out var v) ? v : 0;
+
+    // ── Stat card RenderFragment ───────────────────────────────────────────────
+    private RenderFragment StatCard(string label, int value, string color) => __builder =>
+    {
+        var (bg, text, border) = color switch
         {
             "emerald" => ("bg-emerald-50", "text-emerald-700", "border-emerald-100"),
             "amber"   => ("bg-amber-50",   "text-amber-700",   "border-amber-100"),
@@ -124,14 +194,14 @@
         };
 
         __builder.OpenElement(0, "div");
-        __builder.AddAttribute(1, "class", $"{bg} rounded-xl border {border} p-5 text-center");
+        __builder.AddAttribute(1, "class", $"{bg} rounded-xl border {border} p-5 text-center transition-all duration-300");
         __builder.OpenElement(2, "p");
-        __builder.AddAttribute(3, "class", $"text-3xl font-bold {text}");
-        __builder.AddContent(4, Value.ToString());
+        __builder.AddAttribute(3, "class", $"text-3xl font-bold {text} tabular-nums");
+        __builder.AddContent(4, value.ToString());
         __builder.CloseElement();
         __builder.OpenElement(5, "p");
         __builder.AddAttribute(6, "class", "text-xs text-slate-500 mt-1 font-medium uppercase tracking-wide");
-        __builder.AddContent(7, Label);
+        __builder.AddContent(7, label);
         __builder.CloseElement();
         __builder.CloseElement();
     };

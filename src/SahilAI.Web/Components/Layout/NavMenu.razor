@@ -1,4 +1,6 @@
 @inject NavigationManager Nav
+@inject LiveCountService LiveCounts
+@implements IDisposable
 
 <aside class="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
 
@@ -19,7 +21,14 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            Dashboard
+            <span class="flex-1">Dashboard</span>
+            @if (LiveCounts.IsReady)
+            {
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+            }
         </NavLink>
 
         <NavLink href="/review"
@@ -29,7 +38,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            Review Queue
+            <span class="flex-1">Review Queue</span>
+            @if (ReviewCount > 0)
+            {
+                <span class="bg-amber-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center leading-tight">
+                    @ReviewCount
+                </span>
+            }
         </NavLink>
 
         <NavLink href="/processed"
@@ -39,13 +54,43 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
             </svg>
-            Processed
+            <span class="flex-1">Processed</span>
+            @if (ProcessedCount > 0)
+            {
+                <span class="text-xs text-slate-500 font-mono">@ProcessedCount</span>
+            }
         </NavLink>
 
     </nav>
 
-    <div class="px-5 py-3 border-t border-slate-700 text-xs text-slate-500">
-        v2.0 &middot; Phase 2 Active
+    <div class="px-5 py-3 border-t border-slate-700 text-xs text-slate-500 flex items-center justify-between">
+        <span>v2.0 &middot; Phase 2</span>
+        @if (LiveCounts.IsReady)
+        {
+            <span class="text-emerald-500 font-semibold tracking-wide">● LIVE</span>
+        }
+        else
+        {
+            <span class="text-slate-600 animate-pulse">○ connecting…</span>
+        }
     </div>
 
 </aside>
+
+@code {
+    private int ReviewCount    => LiveCounts.Counts.TryGetValue("REVIEW",   out var r) ? r : 0;
+    private int ProcessedCount => (LiveCounts.Counts.TryGetValue("VALID",    out var v) ? v : 0)
+                                + (LiveCounts.Counts.TryGetValue("APPROVED", out var a) ? a : 0);
+
+    protected override void OnInitialized()
+    {
+        LiveCounts.CountsChanged += OnLiveUpdate;
+    }
+
+    private void OnLiveUpdate() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        LiveCounts.CountsChanged -= OnLiveUpdate;
+    }
+}
