@@ -30,8 +30,10 @@ else
 {
     <div class="flex flex-col -mx-6 -mt-6" style="height: calc(100vh - 44px)">
 
-        <!-- ── Top bar ──────────────────────────────────────────────────────── -->
-        <div class="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4">
+        <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
+        <div class="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-3">
+
+            <!-- Back link -->
             <a href="@backHref"
                class="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,12 +43,28 @@ else
             </a>
             <div class="h-4 w-px bg-slate-200 flex-shrink-0"></div>
 
+            <!-- Invoice identity -->
             <div class="flex-1 min-w-0 flex items-center gap-3">
-                <span class="font-mono text-sm font-bold text-slate-800 truncate">@invoice.InvoiceNumber</span>
-                <span class="text-slate-400 text-xs truncate hidden sm:block">@invoice.VendorName</span>
+                <span class="font-mono text-sm font-bold text-slate-800 truncate">
+                    @(editMode ? edit.InvoiceNumber : invoice.InvoiceNumber)
+                </span>
+                <span class="text-slate-400 text-xs truncate hidden sm:block">
+                    @(editMode ? edit.VendorName : invoice.VendorName)
+                </span>
                 <StatusBadge Status="@invoice.Status" />
+                @if (editMode)
+                {
+                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full animate-pulse">
+                        ✏ Editing
+                    </span>
+                }
+                @if (IsDirty && editMode)
+                {
+                    <span class="text-xs text-amber-600 font-medium">● Unsaved changes</span>
+                }
             </div>
 
+            <!-- Messages -->
             @if (successMessage is not null)
             {
                 <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1 flex-shrink-0">
@@ -58,31 +76,93 @@ else
             }
             @if (errorMessage is not null)
             {
-                <span class="text-xs text-red-500 font-medium flex-shrink-0">⚠ @errorMessage</span>
+                <span class="text-xs text-red-500 font-medium flex-shrink-0 max-w-xs truncate">⚠ @errorMessage</span>
             }
 
+            <!-- Action buttons -->
             @if (invoice.Status == InvoiceStatus.Review)
             {
-                <button @onclick="ApproveAsync" disabled="@isApproving"
-                        class="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700
-                               disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm
-                               font-semibold rounded-lg transition-colors flex-shrink-0 shadow-sm">
-                    @if (isApproving)
-                    {
-                        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                        </svg>
-                        <span>Approving…</span>
-                    }
-                    else
-                    {
+                @if (editMode)
+                {
+                    <!-- Cancel -->
+                    <button @onclick="CancelEdit"
+                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition-colors flex-shrink-0">
+                        Cancel
+                    </button>
+
+                    <!-- Save only -->
+                    <button @onclick="SaveFieldsAsync" disabled="@(isSaving || !IsDirty)"
+                            class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900
+                                   disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm
+                                   font-semibold rounded-lg transition-colors flex-shrink-0">
+                        @if (isSaving)
+                        {
+                            <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                        }
+                        Save
+                    </button>
+
+                    <!-- Save & Approve -->
+                    <button @onclick="SaveAndApproveAsync" disabled="@(isSaving || isApproving)"
+                            class="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700
+                                   disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm
+                                   font-semibold rounded-lg transition-colors flex-shrink-0 shadow-sm">
+                        @if (isSaving || isApproving)
+                        {
+                            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                            <span>@(isSaving ? "Saving…" : "Approving…")</span>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>@(IsDirty ? "Save &amp; Approve" : "Approve &amp; Validate")</span>
+                        }
+                    </button>
+                }
+                else
+                {
+                    <!-- Edit toggle -->
+                    <button @onclick="EnterEditMode"
+                            class="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white
+                                   hover:bg-amber-50 hover:border-amber-300 text-slate-600 hover:text-amber-700
+                                   text-sm font-medium rounded-lg transition-colors flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
-                        <span>Approve &amp; Validate</span>
-                    }
-                </button>
+                        Edit Fields
+                    </button>
+
+                    <!-- Quick approve -->
+                    <button @onclick="ApproveAsync" disabled="@isApproving"
+                            class="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700
+                                   disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm
+                                   font-semibold rounded-lg transition-colors flex-shrink-0 shadow-sm">
+                        @if (isApproving)
+                        {
+                            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                            <span>Approving…</span>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>Approve &amp; Validate</span>
+                        }
+                    </button>
+                }
             }
             else
             {
@@ -92,7 +172,7 @@ else
             }
         </div>
 
-        <!-- ── Split body ───────────────────────────────────────────────────── -->
+        <!-- ── Split body ────────────────────────────────────────────────────────── -->
         <div class="flex-1 overflow-hidden grid" style="grid-template-columns: 55% 45%">
 
             <!-- Left: original document viewer -->
@@ -101,7 +181,9 @@ else
                     <span class="font-medium">
                         Original Document
                         @if (!string.IsNullOrEmpty(fileExt))
-                        {<span>&nbsp;&middot;&nbsp;<span class="font-mono bg-slate-300 rounded px-1">@fileExt.TrimStart('.').ToUpperInvariant()</span></span>}
+                        {
+                            <span>&nbsp;&middot;&nbsp;<span class="font-mono bg-slate-300 rounded px-1">@fileExt.TrimStart('.').ToUpperInvariant()</span></span>
+                        }
                     </span>
                     <span class="font-mono truncate max-w-[200px]">@Path.GetFileName(invoice.SourceFile)</span>
                 </div>
@@ -136,11 +218,46 @@ else
                 </div>
             </div>
 
-            <!-- Right: extracted data -->
+            <!-- Right: extracted data (+ edit mode) -->
             <div class="overflow-auto bg-white">
+
+                <!-- Edit mode banner -->
+                @if (editMode)
+                {
+                    <div class="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-start gap-3">
+                        <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold text-amber-800">Editing extracted fields</p>
+                            <p class="text-xs text-amber-600 mt-0.5">
+                                Correct any errors from the AI extraction. Changed fields are highlighted in amber.
+                                Corrections are applied to the database before ZATCA XML generation.
+                            </p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Validation errors -->
+                @if (validationErrors.Count > 0)
+                {
+                    <div class="bg-red-50 border-b border-red-200 px-5 py-3 space-y-1">
+                        @foreach (var err in validationErrors)
+                        {
+                            <p class="text-xs text-red-600 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                @err
+                            </p>
+                        }
+                    </div>
+                }
+
                 <div class="p-6 space-y-6">
 
-                    <!-- Confidence + region -->
+                    <!-- AI extraction info -->
                     <div class="bg-slate-50 rounded-xl p-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">AI Extraction</span>
@@ -148,37 +265,78 @@ else
                         </div>
                         <ConfidenceBar Score="@invoice.ConfidenceScore" />
                         <p class="text-xs text-slate-400">
-                            @invoice.FileType file &middot; Language: @invoice.DocumentLanguage
-                            &middot; Received @invoice.CreatedAt.ToString("dd MMM yyyy HH:mm") UTC
+                            @invoice.FileType &middot; Language: @invoice.DocumentLanguage
+                            &middot; @invoice.CreatedAt.ToString("dd MMM yyyy HH:mm") UTC
                         </p>
                     </div>
 
-                    <!-- Invoice details -->
+                    <!-- ── Invoice Details ───────────────────────────────────── -->
                     <section class="space-y-2">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Invoice Details</h3>
                         <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
-                            @DetailRow("Invoice #",   invoice.InvoiceNumber,        mono: true)
-                            @DetailRow("Vendor",      invoice.VendorName)
-                            @DetailRow("TRN",         invoice.VendorTrn,             mono: true)
-                            @DetailRow("Date",        invoice.InvoiceDate.ToString("dd MMMM yyyy"))
-                            @DetailRow("Currency",    invoice.Currency)
+                            @if (editMode)
+                            {
+                                @EditableRow("Invoice #", @<input type="text" @bind="edit.InvoiceNumber" class="@InputClass(edit.InvoiceNumber, snapshot.InvoiceNumber, mono:true)" />, IsDifferent(edit.InvoiceNumber, snapshot.InvoiceNumber))
+                                @EditableRow("Vendor",   @<input type="text" @bind="edit.VendorName"    class="@InputClass(edit.VendorName,    snapshot.VendorName)"    />, IsDifferent(edit.VendorName,    snapshot.VendorName))
+                                @EditableRow("TRN",      @<input type="text" @bind="edit.VendorTrn"     class="@InputClass(edit.VendorTrn,     snapshot.VendorTrn, mono:true)" />, IsDifferent(edit.VendorTrn,     snapshot.VendorTrn))
+                                @EditableRow("Date",     @<input type="date" @bind="edit.InvoiceDate" @bind:format="yyyy-MM-dd" class="@DateInputClass(edit.InvoiceDate, snapshot.InvoiceDate)" />, edit.InvoiceDate.Date != snapshot.InvoiceDate.Date)
+                                @EditableRow("Currency", @<input type="text" @bind="edit.Currency" maxlength="3" class="@InputClass(edit.Currency, snapshot.Currency)" />, IsDifferent(edit.Currency, snapshot.Currency))
+                            }
+                            else
+                            {
+                                @DetailRow("Invoice #", invoice.InvoiceNumber, mono: true)
+                                @DetailRow("Vendor",    invoice.VendorName)
+                                @DetailRow("TRN",       invoice.VendorTrn,     mono: true)
+                                @DetailRow("Date",      invoice.InvoiceDate.ToString("dd MMMM yyyy"))
+                                @DetailRow("Currency",  invoice.Currency)
+                            }
                         </dl>
                     </section>
 
-                    <!-- Financials -->
+                    <!-- ── Financials ────────────────────────────────────────── -->
                     <section class="space-y-2">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Financials</h3>
-                        <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
-                            @DetailRow("Subtotal",    invoice.Subtotal.ToString("N2"))
-                            @DetailRow($"Tax ({(invoice.TaxRate * 100):F0}%)", invoice.TaxAmount.ToString("N2"))
-                        </dl>
-                        <div class="flex items-center justify-between bg-slate-800 text-white rounded-xl px-4 py-3 text-sm font-semibold">
-                            <span>Grand Total</span>
-                            <span>@invoice.Currency @invoice.GrandTotal.ToString("N2")</span>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Financials</h3>
+                            @if (editMode && TotalsWarning is not null)
+                            {
+                                <span class="text-xs text-amber-600 font-medium">⚠ @TotalsWarning</span>
+                            }
                         </div>
+
+                        @if (editMode)
+                        {
+                            <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
+                                @EditableRow("Subtotal",         @<input type="number" step="0.01" @bind="edit.Subtotal"  class="@InputClass(edit.Subtotal,  snapshot.Subtotal)"  />, IsDifferent(edit.Subtotal,  snapshot.Subtotal))
+                                @EditableRow("Tax Rate (%)",     @<input type="number" step="1"    @bind="edit.TaxRate"   class="@InputClass(edit.TaxRate,   snapshot.TaxRate)"   />, IsDifferent(edit.TaxRate,   snapshot.TaxRate))
+                                @EditableRow("Tax Amount",       @<input type="number" step="0.01" @bind="edit.TaxAmount" class="@InputClass(edit.TaxAmount, snapshot.TaxAmount)" />, IsDifferent(edit.TaxAmount, snapshot.TaxAmount))
+                            </dl>
+                            <div class="flex items-center justify-between @(IsDifferent(edit.GrandTotal, snapshot.GrandTotal) ? "bg-amber-600" : "bg-slate-800") text-white rounded-xl px-4 py-3 text-sm font-semibold transition-colors">
+                                <span>Grand Total</span>
+                                <div class="flex items-center gap-2">
+                                    <span>@(editMode ? edit.Currency : invoice.Currency)</span>
+                                    <input type="number" step="0.01" @bind="edit.GrandTotal"
+                                           class="w-28 text-right bg-white/10 border border-white/20 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-white/50 text-white font-bold" />
+                                </div>
+                            </div>
+                            <button @onclick="RecalculateTotals"
+                                    class="w-full py-1.5 text-xs text-slate-500 hover:text-indigo-600 border border-dashed border-slate-200 hover:border-indigo-300 rounded-lg transition-colors">
+                                ↻ Recalculate Grand Total (Subtotal + Tax)
+                            </button>
+                        }
+                        else
+                        {
+                            <dl class="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden text-sm">
+                                @DetailRow("Subtotal", invoice.Subtotal.ToString("N2"))
+                                @DetailRow($"Tax ({(invoice.TaxRate * 100):F0}%)", invoice.TaxAmount.ToString("N2"))
+                            </dl>
+                            <div class="flex items-center justify-between bg-slate-800 text-white rounded-xl px-4 py-3 text-sm font-semibold">
+                                <span>Grand Total</span>
+                                <span>@invoice.Currency @invoice.GrandTotal.ToString("N2")</span>
+                            </div>
+                        }
                     </section>
 
-                    <!-- Line items -->
+                    <!-- Line items (always read-only) -->
                     @if (lineItems.Any())
                     {
                         <section class="space-y-2">
@@ -238,7 +396,6 @@ else
                             <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ZATCA Compliance Certificate</h3>
 
                             <div class="rounded-2xl overflow-hidden border border-emerald-200 shadow-sm">
-                                <!-- Certificate header -->
                                 <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 flex items-center justify-between">
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,20 +406,14 @@ else
                                     <span class="text-white/70 text-sm">🇸🇦</span>
                                 </div>
 
-                                <!-- QR code centered -->
                                 <div class="bg-gradient-to-b from-emerald-50 to-white flex flex-col items-center py-6 px-4 gap-3">
                                     <div class="bg-white p-3 rounded-2xl shadow-md border border-emerald-100">
-                                        <img src="/api/qr/@Id"
-                                             alt="ZATCA QR Code"
-                                             class="w-44 h-44 object-contain"
-                                             onerror="this.closest('div').innerHTML='<p class=\'text-xs text-slate-300 text-center p-4\'>QR preview unavailable</p>'" />
+                                        <img src="/api/qr/@Id" alt="ZATCA QR Code" class="w-44 h-44 object-contain"
+                                             onerror="this.closest('div').innerHTML='<p class=\'text-xs text-slate-300 text-center p-4\'>QR unavailable</p>'" />
                                     </div>
-                                    <p class="text-xs text-emerald-700 font-medium text-center">
-                                        Scan with ZATCA app to verify authenticity
-                                    </p>
+                                    <p class="text-xs text-emerald-700 font-medium text-center">Scan with ZATCA app to verify authenticity</p>
                                 </div>
 
-                                <!-- Hash chain -->
                                 <div class="bg-white px-4 pb-4 space-y-2">
                                     @if (!string.IsNullOrEmpty(invoice.XmlHash))
                                     {
@@ -295,7 +446,6 @@ else
                                 </div>
                             </div>
 
-                            <!-- Download XML -->
                             @if (!string.IsNullOrEmpty(invoice.XmlPath))
                             {
                                 <a href="/api/xml/@Id"
@@ -340,20 +490,56 @@ else
 @code {
     [Parameter] public int Id { get; set; }
 
+    // ── State ─────────────────────────────────────────────────────────────────
     private Invoice? invoice;
     private IEnumerable<InvoiceLineItem> lineItems = [];
-    private List<string> anomalies = [];
+    private List<string>  anomalies  = [];
+    private List<string>  validationErrors = [];
     private string textContent = "";
     private string fileExt     = "";
     private bool isLoading     = true;
     private bool isApproving   = false;
+    private bool isSaving      = false;
     private string? successMessage;
     private string? errorMessage;
 
+    // ── Edit mode ─────────────────────────────────────────────────────────────
+    private bool      editMode = false;
+    private EditModel edit     = new();
+    private EditModel snapshot = new();   // pristine copy for diff
+
+    // ── Routing helpers ───────────────────────────────────────────────────────
     private bool   isProcessedRoute => Nav.Uri.Contains("/processed/");
     private string backHref  => isProcessedRoute ? "/processed" : "/review";
     private string backLabel => isProcessedRoute ? "Processed Invoices" : "Review Queue";
 
+    // ── Computed ──────────────────────────────────────────────────────────────
+    private bool IsDirty =>
+        IsDifferent(edit.InvoiceNumber, snapshot.InvoiceNumber)       ||
+        IsDifferent(edit.VendorName,    snapshot.VendorName)          ||
+        IsDifferent(edit.VendorTrn,     snapshot.VendorTrn)           ||
+        edit.InvoiceDate.Date != snapshot.InvoiceDate.Date            ||
+        IsDifferent(edit.Currency,      snapshot.Currency)            ||
+        IsDifferent(edit.Subtotal,      snapshot.Subtotal)            ||
+        IsDifferent(edit.TaxRate,       snapshot.TaxRate)             ||
+        IsDifferent(edit.TaxAmount,     snapshot.TaxAmount)           ||
+        IsDifferent(edit.GrandTotal,    snapshot.GrandTotal);
+
+    private string? TotalsWarning
+    {
+        get
+        {
+            if (!decimal.TryParse(edit.Subtotal,  out var sub)) return null;
+            if (!decimal.TryParse(edit.TaxAmount, out var tax)) return null;
+            if (!decimal.TryParse(edit.GrandTotal, out var grd)) return null;
+            var expected = Math.Round(sub + tax, 2);
+            return Math.Abs(expected - grd) > 0.01m
+                ? $"Expected {expected:N2}, got {grd:N2}"
+                : null;
+        }
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         invoice   = await InvoiceRepo.GetByIdAsync(Id);
@@ -364,6 +550,130 @@ else
         isLoading = false;
     }
 
+    // ── Edit mode methods ─────────────────────────────────────────────────────
+    private void EnterEditMode()
+    {
+        if (invoice is null) return;
+        edit     = EditModel.From(invoice);
+        snapshot = EditModel.From(invoice);
+        validationErrors.Clear();
+        editMode = true;
+    }
+
+    private void CancelEdit()
+    {
+        editMode = false;
+        validationErrors.Clear();
+        errorMessage = null;
+    }
+
+    private void RecalculateTotals()
+    {
+        if (decimal.TryParse(edit.Subtotal,  out var sub) &&
+            decimal.TryParse(edit.TaxAmount, out var tax))
+        {
+            edit.GrandTotal = Math.Round(sub + tax, 2).ToString("F2");
+        }
+    }
+
+    private bool Validate()
+    {
+        validationErrors.Clear();
+
+        if (string.IsNullOrWhiteSpace(edit.InvoiceNumber))
+            validationErrors.Add("Invoice number is required.");
+
+        if (string.IsNullOrWhiteSpace(edit.VendorName))
+            validationErrors.Add("Vendor name is required.");
+
+        if (!decimal.TryParse(edit.Subtotal, out var sub) || sub < 0)
+            validationErrors.Add("Subtotal must be a valid non-negative number.");
+
+        if (!decimal.TryParse(edit.TaxAmount, out var tax) || tax < 0)
+            validationErrors.Add("Tax amount must be a valid non-negative number.");
+
+        if (!decimal.TryParse(edit.GrandTotal, out var grd) || grd < 0)
+            validationErrors.Add("Grand total must be a valid non-negative number.");
+
+        if (!decimal.TryParse(edit.TaxRate, out _))
+            validationErrors.Add("Tax rate must be a valid number (e.g. 15 for 15%).");
+
+        if (edit.InvoiceDate == default)
+            validationErrors.Add("Invoice date is invalid.");
+
+        return validationErrors.Count == 0;
+    }
+
+    private async Task SaveFieldsAsync()
+    {
+        if (!Validate() || invoice is null) return;
+
+        isSaving     = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var date    = edit.InvoiceDate;
+            var sub     = decimal.Parse(edit.Subtotal);
+            var tax     = decimal.Parse(edit.TaxAmount);
+            var grd     = decimal.Parse(edit.GrandTotal);
+            var rate    = decimal.Parse(edit.TaxRate) / 100m;
+
+            await InvoiceRepo.UpdateCoreFieldsAsync(
+                Id,
+                edit.InvoiceNumber.Trim(),
+                edit.VendorName.Trim(),
+                edit.VendorTrn.Trim(),
+                date, sub, tax, grd, rate,
+                edit.Currency.Trim().ToUpperInvariant()
+            );
+
+            // Reflect changes in the in-memory invoice so the top bar updates
+            invoice.InvoiceNumber = edit.InvoiceNumber.Trim();
+            invoice.VendorName    = edit.VendorName.Trim();
+            invoice.VendorTrn     = edit.VendorTrn.Trim();
+            invoice.InvoiceDate   = date;
+            invoice.Subtotal      = sub;
+            invoice.TaxAmount     = tax;
+            invoice.GrandTotal    = grd;
+            invoice.TaxRate       = rate;
+            invoice.Currency      = edit.Currency.Trim().ToUpperInvariant();
+
+            // Advance snapshot → no longer dirty
+            snapshot     = EditModel.From(invoice);
+            successMessage = "Fields saved.";
+
+            // Auto-clear success badge
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(3000);
+                successMessage = null;
+                await InvokeAsync(StateHasChanged);
+            });
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task SaveAndApproveAsync()
+    {
+        // Save first if there are any changes
+        if (IsDirty)
+        {
+            await SaveFieldsAsync();
+            if (validationErrors.Count > 0 || errorMessage is not null) return;
+        }
+        await ApproveAsync();
+    }
+
+    // ── Approval ──────────────────────────────────────────────────────────────
     private async Task ApproveAsync()
     {
         isApproving  = true;
@@ -375,9 +685,10 @@ else
         if (result.Success)
         {
             successMessage = result.Message;
+            editMode = false;
             if (invoice is not null) invoice.Status = InvoiceStatus.Valid;
             StateHasChanged();
-            await Task.Delay(2000);
+            await Task.Delay(1800);
             Nav.NavigateTo("/processed");
         }
         else
@@ -387,6 +698,7 @@ else
         }
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
     private async Task LoadTextPreviewAsync()
     {
         if (invoice is null) return;
@@ -413,12 +725,33 @@ else
         catch { return []; }
     }
 
+    private static bool IsDifferent(string a, string b)
+        => !string.Equals(a?.Trim(), b?.Trim(), StringComparison.Ordinal);
+
+    // ── Input CSS helpers ─────────────────────────────────────────────────────
+    private static string InputClass(string current, string original, bool mono = false)
+    {
+        var changed = !string.Equals(current?.Trim(), original?.Trim(), StringComparison.Ordinal);
+        var base_   = "w-full text-sm text-slate-700 bg-transparent border-0 focus:ring-0 focus:outline-none px-0 py-0";
+        var font    = mono ? " font-mono text-xs" : "";
+        var hl      = changed ? " text-amber-800 font-semibold" : "";
+        return base_ + font + hl;
+    }
+
+    private static string DateInputClass(DateTime current, DateTime original)
+    {
+        var changed = current.Date != original.Date;
+        var base_   = "w-full text-sm text-slate-700 bg-transparent border-0 focus:ring-0 focus:outline-none px-0 py-0";
+        return base_ + (changed ? " text-amber-800 font-semibold" : "");
+    }
+
+    // ── RenderFragments ───────────────────────────────────────────────────────
     private RenderFragment DetailRow(string label, string? value, bool mono = false) => __builder =>
     {
         __builder.OpenElement(0, "div");
         __builder.AddAttribute(1, "class", "flex items-center justify-between px-4 py-2.5 bg-white gap-4");
         __builder.OpenElement(2, "dt");
-        __builder.AddAttribute(3, "class", "text-slate-400 flex-shrink-0");
+        __builder.AddAttribute(3, "class", "text-slate-400 flex-shrink-0 text-sm");
         __builder.AddContent(4, label);
         __builder.CloseElement();
         __builder.OpenElement(5, "dd");
@@ -428,4 +761,57 @@ else
         __builder.CloseElement();
         __builder.CloseElement();
     };
+
+    private RenderFragment EditableRow(string label, RenderFragment input, bool changed) => __builder =>
+    {
+        var rowClass = changed
+            ? "flex items-center gap-3 px-4 py-2 bg-amber-50 border-l-2 border-amber-400"
+            : "flex items-center gap-3 px-4 py-2 bg-white";
+
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", rowClass);
+        __builder.OpenElement(2, "dt");
+        __builder.AddAttribute(3, "class", "text-slate-400 flex-shrink-0 text-sm w-24");
+        __builder.AddContent(4, label);
+        if (changed)
+        {
+            __builder.OpenElement(5, "span");
+            __builder.AddAttribute(6, "class", "ml-1 text-amber-500 text-xs");
+            __builder.AddContent(7, "●");
+            __builder.CloseElement();
+        }
+        __builder.CloseElement();
+        __builder.OpenElement(8, "dd");
+        __builder.AddAttribute(9, "class", "flex-1");
+        __builder.AddContent(10, input);
+        __builder.CloseElement();
+        __builder.CloseElement();
+    };
+
+    // ── EditModel (inner class) ───────────────────────────────────────────────
+    private sealed class EditModel
+    {
+        public string   InvoiceNumber { get; set; } = "";
+        public string   VendorName    { get; set; } = "";
+        public string   VendorTrn     { get; set; } = "";
+        public DateTime InvoiceDate   { get; set; }        // bound to <input type="date">
+        public string   Currency      { get; set; } = "";
+        public string   Subtotal      { get; set; } = "";
+        public string   TaxRate       { get; set; } = "";  // whole percent, e.g. "15"
+        public string   TaxAmount     { get; set; } = "";
+        public string   GrandTotal    { get; set; } = "";
+
+        public static EditModel From(Invoice inv) => new()
+        {
+            InvoiceNumber = inv.InvoiceNumber,
+            VendorName    = inv.VendorName,
+            VendorTrn     = inv.VendorTrn,
+            InvoiceDate   = inv.InvoiceDate,
+            Currency      = inv.Currency,
+            Subtotal      = inv.Subtotal.ToString("F2"),
+            TaxRate       = (inv.TaxRate * 100m).ToString("F0"),
+            TaxAmount     = inv.TaxAmount.ToString("F2"),
+            GrandTotal    = inv.GrandTotal.ToString("F2"),
+        };
+    }
 }

@@ -3,6 +3,8 @@ using SahilAI.Domain.Interfaces;
 using SahilAI.Infrastructure;
 using SahilAI.Infrastructure.Persistence;
 using SahilAI.Web;
+using SahilAI.Web.Hubs;
+using SahilAI.Web.Services;
 using Serilog;
 using Serilog.Events;
 
@@ -20,6 +22,11 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// ── Real-time / SignalR ──────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<LiveCountService>();
+builder.Services.AddHostedService<InvoicePollingService>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -27,6 +34,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// ── SignalR hub ──────────────────────────────────────────────────────────────
+app.MapHub<InvoiceHub>("/hubs/invoice");
 
 // ── Serve original invoice files securely by database ID ────────────────────
 app.MapGet("/api/files/{id:int}", async (int id, IInvoiceRepository invoices, IConfiguration config) =>

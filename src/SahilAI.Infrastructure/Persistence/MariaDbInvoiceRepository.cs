@@ -174,4 +174,32 @@ public sealed class MariaDbInvoiceRepository : IInvoiceRepository
         await using var conn = new MySqlConnection(_connectionString);
         return await conn.QueryAsync<Invoice>(sql);
     }
+
+    public async Task UpdateCoreFieldsAsync(
+        int id, string invoiceNumber, string vendorName, string vendorTrn,
+        DateTime invoiceDate, decimal subtotal, decimal taxAmount, decimal grandTotal,
+        decimal taxRate, string currency)
+    {
+        const string sql = """
+            UPDATE Invoices
+            SET InvoiceNumber = @InvoiceNumber,
+                VendorName    = @VendorName,
+                VendorTrn     = @VendorTrn,
+                InvoiceDate   = @InvoiceDate,
+                Subtotal      = @Subtotal,
+                TaxAmount     = @TaxAmount,
+                GrandTotal    = @GrandTotal,
+                TaxRate       = @TaxRate,
+                Currency      = @Currency
+            WHERE Id = @Id;
+            """;
+        await using var conn = new MySqlConnection(_connectionString);
+        await conn.ExecuteAsync(sql, new
+        {
+            Id = id, InvoiceNumber = invoiceNumber, VendorName = vendorName,
+            VendorTrn = vendorTrn, InvoiceDate = invoiceDate, Subtotal = subtotal,
+            TaxAmount = taxAmount, GrandTotal = grandTotal, TaxRate = taxRate,
+            Currency = currency
+        });
+    }
 }
