@@ -5,7 +5,7 @@
 
 <PageTitle>Processed Invoices — Sahil AI</PageTitle>
 
-<div class="space-y-6 max-w-7xl">
+<div class="space-y-5 max-w-7xl">
 
     <!-- Header -->
     <div class="flex items-center justify-between">
@@ -25,7 +25,6 @@
 
     @if (isLoading)
     {
-        <!-- Skeleton loader -->
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             @for (var i = 0; i < 6; i++)
             {
@@ -46,7 +45,7 @@
     }
     else
     {
-        <!-- Tab bar -->
+        <!-- ── Tab bar ── -->
         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
             <button @onclick='() => activeTab = "success"'
                     class="px-5 py-2 rounded-lg text-sm font-medium transition-all @(activeTab == "success"
@@ -55,7 +54,9 @@
                 <span class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
                     Success
-                    <span class="text-xs font-bold text-slate-500">@processed.Count()</span>
+                    <span class="text-xs font-bold @(IsFiltered && activeTab == "success" ? "text-indigo-600" : "text-slate-500")">
+                        @(IsFiltered ? $"{FilteredCount}/{processed.Count()}" : processed.Count().ToString())
+                    </span>
                 </span>
             </button>
             <button @onclick='() => activeTab = "failed"'
@@ -65,7 +66,9 @@
                 <span class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
                     Failed
-                    <span class="text-xs font-bold text-slate-500">@failed.Count()</span>
+                    <span class="text-xs font-bold text-slate-500">
+                        @(!string.IsNullOrWhiteSpace(failedSearch) ? $"{FailedCount}/{failed.Count()}" : failed.Count().ToString())
+                    </span>
                 </span>
             </button>
         </div>
@@ -73,6 +76,138 @@
         <!-- ── SUCCESS TAB ── -->
         @if (activeTab == "success")
         {
+            <!-- Filter panel -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+
+                <!-- Row 1: search + region + sort -->
+                <div class="flex flex-wrap items-center gap-3">
+
+                    <!-- Search -->
+                    <div class="relative flex-1 min-w-[200px]">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                        </svg>
+                        <input type="text"
+                               placeholder="Search vendor name or invoice #…"
+                               value="@searchText"
+                               @oninput="@(e => searchText = e.Value?.ToString() ?? "")"
+                               class="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg
+                                      focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400
+                                      placeholder-slate-400 text-slate-700" />
+                        @if (!string.IsNullOrEmpty(searchText))
+                        {
+                            <button @onclick='() => searchText = ""'
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Region -->
+                    <select @bind="filterRegion"
+                            class="py-2 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400
+                                   @(filterRegion != "" ? "border-indigo-300 text-indigo-700 font-medium" : "text-slate-600")">
+                        <option value="">🌍 All regions</option>
+                        <option value="@ComplianceRegion.UAE">🇦🇪 UAE</option>
+                        <option value="@ComplianceRegion.SaudiArabia">🇸🇦 KSA</option>
+                        <option value="@ComplianceRegion.USA">🇺🇸 USA</option>
+                    </select>
+
+                    <!-- Sort -->
+                    <select @bind="sortBy"
+                            class="py-2 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white text-slate-600
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400">
+                        <option value="newest">↓ Newest first</option>
+                        <option value="oldest">↑ Oldest first</option>
+                        <option value="amtDesc">$ Amount: High → Low</option>
+                        <option value="amtAsc">$ Amount: Low → High</option>
+                        <option value="confDesc">✓ Confidence: High → Low</option>
+                    </select>
+                </div>
+
+                <!-- Row 2: date range + amount range + result count + clear -->
+                <div class="flex flex-wrap items-center gap-3">
+
+                    <!-- Date range -->
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <input type="date"
+                               value="@dateFromStr"
+                               @oninput="@(e => dateFromStr = e.Value?.ToString() ?? "")"
+                               title="From date"
+                               class="py-1.5 px-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 text-slate-600
+                                      @(!string.IsNullOrEmpty(dateFromStr) ? "border-indigo-300" : "border-slate-200")" />
+                        <span class="text-slate-400 text-xs">→</span>
+                        <input type="date"
+                               value="@dateToStr"
+                               @oninput="@(e => dateToStr = e.Value?.ToString() ?? "")"
+                               title="To date"
+                               class="py-1.5 px-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 text-slate-600
+                                      @(!string.IsNullOrEmpty(dateToStr) ? "border-indigo-300" : "border-slate-200")" />
+                    </div>
+
+                    <!-- Amount range -->
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <input type="number" step="0.01" min="0" placeholder="Min amount"
+                               value="@amtMinStr"
+                               @oninput="@(e => amtMinStr = e.Value?.ToString() ?? "")"
+                               class="w-28 py-1.5 px-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 text-slate-600
+                                      @(!string.IsNullOrEmpty(amtMinStr) ? "border-indigo-300" : "border-slate-200")" />
+                        <span class="text-slate-400 text-xs">→</span>
+                        <input type="number" step="0.01" min="0" placeholder="Max amount"
+                               value="@amtMaxStr"
+                               @oninput="@(e => amtMaxStr = e.Value?.ToString() ?? "")"
+                               class="w-28 py-1.5 px-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 text-slate-600
+                                      @(!string.IsNullOrEmpty(amtMaxStr) ? "border-indigo-300" : "border-slate-200")" />
+                    </div>
+
+                    <!-- Result count + clear -->
+                    <div class="flex items-center gap-3 ml-auto">
+                        <span class="text-xs text-slate-400">
+                            @if (IsFiltered)
+                            {
+                                <span class="text-indigo-600 font-semibold">@FilteredCount</span>
+                                <span> of @processed.Count() match</span>
+                            }
+                            else
+                            {
+                                <span>@processed.Count() invoice@(processed.Count() == 1 ? "" : "s")</span>
+                            }
+                            @if (ZatcaCount > 0)
+                            {
+                                <span class="ml-1.5 text-emerald-600">· @ZatcaCount ZATCA</span>
+                            }
+                        </span>
+
+                        @if (IsFiltered)
+                        {
+                            <button @onclick="ClearFilters"
+                                    class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-500
+                                           hover:text-red-700 border border-red-200 hover:border-red-300
+                                           bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                Clear all
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice grid — uses FilteredProcessed directly, no @{var} needed -->
             @if (!processed.Any())
             {
                 <div class="bg-white rounded-2xl border border-slate-100 py-24 text-center">
@@ -85,18 +220,36 @@
                     <p class="text-slate-300 text-xs mt-1">Drop an invoice in the inbox to begin.</p>
                 </div>
             }
+            else if (IsFiltered && !FilteredProcessed.Any())
+            {
+                <div class="bg-white rounded-2xl border border-slate-100 py-20 text-center">
+                    <div class="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                        </svg>
+                    </div>
+                    <p class="text-slate-600 font-medium">No invoices match your filters</p>
+                    <p class="text-slate-400 text-sm mt-1">Try adjusting the search or date range.</p>
+                    <button @onclick="ClearFilters"
+                            class="mt-4 px-4 py-2 text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-200
+                                   hover:border-indigo-400 rounded-lg transition-colors font-medium">
+                        Clear all filters
+                    </button>
+                </div>
+            }
             else
             {
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    @foreach (var inv in processed)
+                    @foreach (var inv in FilteredProcessed)
                     {
                         var hasZatca = inv.Region == ComplianceRegion.SaudiArabia && !string.IsNullOrEmpty(inv.XmlHash);
                         var hasQr    = !string.IsNullOrEmpty(inv.QrCodeBase64);
+
                         <div class="group bg-white rounded-2xl border @(hasZatca ? "border-emerald-200" : "border-slate-200")
                                     shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden cursor-pointer"
                              @onclick="@(() => Nav.NavigateTo($"/processed/{inv.Id}"))">
 
-                            <!-- Ribbon -->
                             @if (hasZatca)
                             {
                                 <div class="bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 flex items-center justify-between">
@@ -112,7 +265,6 @@
                                 </div>
                             }
 
-                            <!-- Body -->
                             <div class="p-4 flex gap-4">
                                 @if (hasQr)
                                 {
@@ -132,8 +284,12 @@
                                 }
 
                                 <div class="min-w-0 flex-1">
-                                    <p class="font-mono text-xs font-bold text-indigo-600 truncate">@inv.InvoiceNumber</p>
-                                    <p class="text-sm text-slate-600 truncate mt-0.5">@inv.VendorName</p>
+                                    <p class="font-mono text-xs font-bold text-indigo-600 truncate">
+                                        @HighlightMatch(inv.InvoiceNumber)
+                                    </p>
+                                    <p class="text-sm text-slate-600 truncate mt-0.5">
+                                        @HighlightMatch(inv.VendorName)
+                                    </p>
                                     <p class="text-lg font-bold text-slate-800 mt-2 leading-none">
                                         @inv.Currency&nbsp;@inv.GrandTotal.ToString("N2")
                                     </p>
@@ -143,7 +299,6 @@
                                 </div>
                             </div>
 
-                            <!-- Footer -->
                             <div class="px-4 pb-4 flex items-center justify-between border-t border-slate-50 pt-3">
                                 <span class="text-xs text-slate-400">@inv.CreatedAt.ToString("dd MMM yyyy, HH:mm")</span>
                                 <div class="flex items-center gap-2" @onclick:stopPropagation="true">
@@ -173,6 +328,33 @@
         <!-- ── FAILED TAB ── -->
         @if (activeTab == "failed")
         {
+            @if (failed.Any())
+            {
+                <div class="relative max-w-sm">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                    </svg>
+                    <input type="text"
+                           placeholder="Search invoice # or filename…"
+                           value="@failedSearch"
+                           @oninput="@(e => failedSearch = e.Value?.ToString() ?? "")"
+                           class="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg bg-white
+                                  focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300
+                                  placeholder-slate-400 text-slate-700" />
+                    @if (!string.IsNullOrEmpty(failedSearch))
+                    {
+                        <button @onclick='() => failedSearch = ""'
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    }
+                </div>
+            }
+
             @if (!failed.Any())
             {
                 <div class="bg-white rounded-2xl border border-slate-100 py-24 text-center">
@@ -185,10 +367,16 @@
                     <p class="text-slate-400 text-sm mt-1">All submitted files have been processed successfully.</p>
                 </div>
             }
+            else if (!string.IsNullOrWhiteSpace(failedSearch) && !FilteredFailed.Any())
+            {
+                <div class="bg-white rounded-xl border border-slate-100 py-16 text-center">
+                    <p class="text-slate-500 text-sm">No failed invoices match "<strong>@failedSearch</strong>"</p>
+                </div>
+            }
             else
             {
                 <div class="space-y-3">
-                    @foreach (var inv in failed)
+                    @foreach (var inv in FilteredFailed)
                     {
                         <div class="bg-white rounded-xl border border-red-100 p-4 flex items-start gap-4 hover:border-red-200 transition-colors">
                             <div class="w-9 h-9 bg-red-50 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -222,14 +410,118 @@
 </div>
 
 @code {
+    // ── Data ──────────────────────────────────────────────────────────────────
     private IEnumerable<Invoice> processed = [];
     private IEnumerable<Invoice> failed    = [];
     private string activeTab = "success";
     private bool   isLoading = true;
 
+    // ── Filter state (all strings — avoids Blazor DateTime binding issues) ────
+    private string searchText   = "";
+    private string filterRegion = "";
+    private string dateFromStr  = "";
+    private string dateToStr    = "";
+    private string amtMinStr    = "";
+    private string amtMaxStr    = "";
+    private string sortBy       = "newest";
+    private string failedSearch = "";
+
+    // ── Computed: filtered + sorted ───────────────────────────────────────────
+    private IEnumerable<Invoice> FilteredProcessed
+    {
+        get
+        {
+            var q = processed.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+                q = q.Where(i =>
+                    i.InvoiceNumber.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    i.VendorName.Contains(searchText,    StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrEmpty(filterRegion))
+                q = q.Where(i => i.Region == filterRegion);
+
+            if (DateTime.TryParse(dateFromStr, out var from))
+                q = q.Where(i => i.CreatedAt.Date >= from.Date);
+
+            if (DateTime.TryParse(dateToStr, out var to))
+                q = q.Where(i => i.CreatedAt.Date <= to.Date);
+
+            if (decimal.TryParse(amtMinStr, out var min))
+                q = q.Where(i => i.GrandTotal >= min);
+
+            if (decimal.TryParse(amtMaxStr, out var max))
+                q = q.Where(i => i.GrandTotal <= max);
+
+            return sortBy switch
+            {
+                "oldest"   => q.OrderBy(i => i.CreatedAt),
+                "amtDesc"  => q.OrderByDescending(i => i.GrandTotal),
+                "amtAsc"   => q.OrderBy(i => i.GrandTotal),
+                "confDesc" => q.OrderByDescending(i => i.ConfidenceScore),
+                _          => q.OrderByDescending(i => i.CreatedAt),
+            };
+        }
+    }
+
+    private IEnumerable<Invoice> FilteredFailed =>
+        string.IsNullOrWhiteSpace(failedSearch)
+            ? failed
+            : failed.Where(i =>
+                i.InvoiceNumber.Contains(failedSearch, StringComparison.OrdinalIgnoreCase) ||
+                Path.GetFileName(i.SourceFile ?? "").Contains(failedSearch, StringComparison.OrdinalIgnoreCase));
+
+    // Cached counts (avoids multiple enumerations in template)
+    private int  FilteredCount => FilteredProcessed.Count();
+    private int  FailedCount   => FilteredFailed.Count();
+    private int  ZatcaCount    => FilteredProcessed.Count(i =>
+                                    i.Region == ComplianceRegion.SaudiArabia &&
+                                    !string.IsNullOrEmpty(i.XmlHash));
+
+    private bool IsFiltered =>
+        !string.IsNullOrWhiteSpace(searchText)  ||
+        !string.IsNullOrEmpty(filterRegion)     ||
+        !string.IsNullOrEmpty(dateFromStr)      ||
+        !string.IsNullOrEmpty(dateToStr)        ||
+        !string.IsNullOrEmpty(amtMinStr)        ||
+        !string.IsNullOrEmpty(amtMaxStr);
+
+    // ── Search highlight ──────────────────────────────────────────────────────
+    private MarkupString HighlightMatch(string text)
+    {
+        if (string.IsNullOrWhiteSpace(searchText) || string.IsNullOrEmpty(text))
+            return (MarkupString)System.Net.WebUtility.HtmlEncode(text ?? "");
+
+        var idx = text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return (MarkupString)System.Net.WebUtility.HtmlEncode(text);
+
+        var before = System.Net.WebUtility.HtmlEncode(text[..idx]);
+        var match  = System.Net.WebUtility.HtmlEncode(text.Substring(idx, searchText.Length));
+        var after  = System.Net.WebUtility.HtmlEncode(text[(idx + searchText.Length)..]);
+
+        return (MarkupString)
+            $"{before}<mark class=\"bg-amber-200 text-amber-900 rounded px-0.5\">{match}</mark>{after}";
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    private void ClearFilters()
+    {
+        searchText   = "";
+        filterRegion = "";
+        dateFromStr  = "";
+        dateToStr    = "";
+        amtMinStr    = "";
+        amtMaxStr    = "";
+    }
+
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    private async Task RefreshAsync() => await LoadAsync();
+    private async Task RefreshAsync()
+    {
+        ClearFilters();
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
