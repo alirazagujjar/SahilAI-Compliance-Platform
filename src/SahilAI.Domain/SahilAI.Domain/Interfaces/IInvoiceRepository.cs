@@ -40,4 +40,7 @@ public interface IInvoiceRepository
     Task UpdateCoreFieldsAsync(int id, string invoiceNumber, string vendorName, string vendorTrn,
         DateTime invoiceDate, decimal subtotal, decimal taxAmount, decimal grandTotal,
         decimal taxRate, string currency);
+
+    /// Returns invoice count per calendar day for the last 7 days, oldest→newest.
+    Task<IReadOnlyList<(string Label, int Count)>> GetDailyCountsAsync();
 }

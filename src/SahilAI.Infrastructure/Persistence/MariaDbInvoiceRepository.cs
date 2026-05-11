@@ -175,6 +175,32 @@ public sealed class MariaDbInvoiceRepository : IInvoiceRepository
         return await conn.QueryAsync<Invoice>(sql);
     }
 
+    public async Task<IReadOnlyList<(string Label, int Count)>> GetDailyCountsAsync()
+    {
+        const string sql = """
+            SELECT DATE(createdAt) AS Day, COUNT(*) AS Cnt
+            FROM Invoices
+            WHERE createdAt >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY DATE(createdAt)
+            ORDER BY Day ASC;
+            """;
+
+        await using var conn = new MySqlConnection(_connectionString);
+        var rows = await conn.QueryAsync<(DateTime Day, int Cnt)>(sql);
+        var byDate = rows.ToDictionary(r => r.Day.Date, r => r.Cnt);
+
+        var today = DateTime.Today;
+        var result = new List<(string Label, int Count)>(7);
+        for (var i = 6; i >= 0; i--)
+        {
+            var day = today.AddDays(-i);
+            var label = i == 0 ? "Today" : day.ToString("ddd");
+            byDate.TryGetValue(day, out var count);
+            result.Add((label, count));
+        }
+        return result;
+    }
+
     public async Task UpdateCoreFieldsAsync(
         int id, string invoiceNumber, string vendorName, string vendorTrn,
         DateTime invoiceDate, decimal subtotal, decimal taxAmount, decimal grandTotal,

@@ -2,77 +2,110 @@
 @inject LiveCountService LiveCounts
 @implements IDisposable
 
-<aside class="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
+<aside class="w-60 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col select-none">
 
-    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">S</div>
+    <!-- Logo -->
+    <div class="px-5 py-5 flex items-center gap-3 border-b border-slate-800/60">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-extrabold text-sm text-white flex-shrink-0 shadow-lg shadow-indigo-900/40">
+            SA
+        </div>
         <div class="min-w-0">
-            <p class="font-semibold text-white text-sm leading-tight truncate">Sahil AI</p>
-            <p class="text-xs text-slate-400 truncate">Compliance Platform</p>
+            <p class="font-bold text-white text-sm leading-tight tracking-tight">Sahil AI</p>
+            <p class="text-[11px] text-slate-500 mt-0.5 truncate">Agentic Compliance Platform</p>
         </div>
     </div>
 
-    <nav class="flex-1 px-3 py-4 space-y-0.5">
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
+
+        <p class="px-3 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Overview</p>
 
         <NavLink href="/" Match="NavLinkMatch.All"
-                 class="group flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm"
-                 ActiveClass="!bg-slate-800 !text-white">
+                 class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                 ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+            <!-- Dashboard icon -->
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
             </svg>
             <span class="flex-1">Dashboard</span>
             @if (LiveCounts.IsReady)
             {
-                <span class="relative flex h-2 w-2">
+                <span class="relative flex h-1.5 w-1.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                 </span>
             }
         </NavLink>
 
-        <NavLink href="/review"
-                 class="group flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm"
-                 ActiveClass="!bg-slate-800 !text-white">
+        <p class="px-3 pt-4 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Processing</p>
+
+        <NavLink href="/upload"
+                 class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                 ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+            <!-- Upload icon -->
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <span class="flex-1">Upload</span>
+            <span class="text-[10px] font-bold text-indigo-400 bg-indigo-900/50 rounded px-1.5 py-0.5">NEW</span>
+        </NavLink>
+
+        <NavLink href="/review"
+                 class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                 ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+            <!-- Clock/eye icon -->
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
             <span class="flex-1">Review Queue</span>
             @if (ReviewCount > 0)
             {
-                <span class="bg-amber-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center leading-tight">
+                <span class="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center leading-tight tabular-nums">
                     @ReviewCount
                 </span>
             }
         </NavLink>
 
         <NavLink href="/processed"
-                 class="group flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm"
-                 ActiveClass="!bg-slate-800 !text-white">
+                 class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                 ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+            <!-- Shield-check icon -->
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
             <span class="flex-1">Processed</span>
             @if (ProcessedCount > 0)
             {
-                <span class="text-xs text-slate-500 font-mono">@ProcessedCount</span>
+                <span class="text-[11px] text-slate-600 font-semibold tabular-nums">@ProcessedCount</span>
             }
         </NavLink>
 
     </nav>
 
-    <div class="px-5 py-3 border-t border-slate-700 text-xs text-slate-500 flex items-center justify-between">
-        <span>v2.0 &middot; Phase 2</span>
+    <!-- Footer -->
+    <div class="px-4 py-4 border-t border-slate-800/60 space-y-2">
         @if (LiveCounts.IsReady)
         {
-            <span class="text-emerald-500 font-semibold tracking-wide">● LIVE</span>
+            <div class="flex items-center gap-2 px-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-[11px] text-slate-500">Live · refreshing every 3s</span>
+            </div>
         }
         else
         {
-            <span class="text-slate-600 animate-pulse">○ connecting…</span>
+            <div class="flex items-center gap-2 px-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-slate-600 animate-pulse"></span>
+                <span class="text-[11px] text-slate-600">Connecting…</span>
+            </div>
         }
+        <div class="flex items-center justify-between px-2">
+            <span class="text-[11px] text-slate-700 font-medium">v2.0 · ZATCA Phase 2</span>
+            <span class="text-[10px] px-1.5 py-0.5 bg-indigo-900/60 text-indigo-400 rounded font-mono">SA</span>
+        </div>
     </div>
 
 </aside>

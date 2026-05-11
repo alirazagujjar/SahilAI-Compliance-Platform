@@ -1,0 +1,461 @@
+@page "/upload"
+@rendermode InteractiveServer
+@inject IConfiguration Config
+@inject IPdfPageExtractor PdfExtractor
+
+<PageTitle>Upload Invoices — Sahil AI</PageTitle>
+
+<div class="max-w-4xl space-y-6">
+
+    <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+    <div>
+        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">Invoice Ingestion</p>
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Upload Invoices</h1>
+        <p class="text-slate-400 text-sm mt-0.5">
+            Drop files here and they will be queued in the processing inbox automatically.
+        </p>
+    </div>
+
+    <!-- ── Drop Zone ──────────────────────────────────────────────────────────── -->
+    <div class="relative rounded-2xl border-2 @(_isDragging ? "border-indigo-400 bg-indigo-50/60" : "border-dashed border-slate-200 bg-white")
+                transition-all duration-150 shadow-sm"
+         style="min-height:220px">
+
+        <!-- Visual content — pointer-events:none so the InputFile underneath handles all interaction -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none select-none px-6 text-center">
+            <div class="w-16 h-16 rounded-2xl @(_isDragging ? "bg-indigo-100" : "bg-slate-50") flex items-center justify-center transition-colors">
+                <svg class="w-8 h-8 @(_isDragging ? "text-indigo-500" : "text-slate-300") transition-colors"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+            </div>
+            @if (_isDragging)
+            {
+                <p class="text-base font-bold text-indigo-600">Release to add files</p>
+            }
+            else
+            {
+                <div>
+                    <p class="text-base font-semibold text-slate-600">
+                        Drag &amp; drop files here, or <span class="text-indigo-600 underline underline-offset-2">click to browse</span>
+                    </p>
+                    <p class="text-sm text-slate-400 mt-1.5">
+                        PDF · PNG · JPG · TXT · CSV · XML &nbsp;·&nbsp; Up to 50 files, 20 MB each
+                    </p>
+                </div>
+            }
+        </div>
+
+        <!-- InputFile fills the entire zone — handles clicks AND native drag-and-drop -->
+        <InputFile multiple
+                   accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff,.webp,.txt,.csv,.xml"
+                   OnChange="OnFilesSelectedAsync"
+                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                   @ondragenter="() => _isDragging = true"
+                   @ondragleave="() => _isDragging = false"
+                   @ondrop="() => _isDragging = false" />
+    </div>
+
+    <!-- ── Options ────────────────────────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+        <h3 class="text-sm font-bold text-slate-700">Processing Options</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <!-- Split PDFs toggle -->
+            <div class="flex items-start gap-3 p-4 rounded-xl border @(_splitPdfs ? "border-indigo-200 bg-indigo-50" : "border-slate-100 bg-slate-50") transition-colors cursor-pointer"
+                 @onclick="() => _splitPdfs = !_splitPdfs">
+                <div class="flex-shrink-0 mt-0.5 w-10 h-6 rounded-full @(_splitPdfs ? "bg-indigo-500" : "bg-slate-200") transition-colors relative">
+                    <span class="absolute top-1 @(_splitPdfs ? "left-5" : "left-1") w-4 h-4 rounded-full bg-white shadow transition-all duration-150 block"></span>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold @(_splitPdfs ? "text-indigo-700" : "text-slate-700")">Split multi-page PDFs</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Each page is processed as a separate invoice</p>
+                </div>
+            </div>
+
+            <!-- Region selector -->
+            <div class="p-4 rounded-xl border border-slate-100 bg-slate-50">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Default Region</label>
+                <select @bind="_region"
+                        class="w-full py-2 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white text-slate-700
+                               focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400">
+                    <option value="SA">🇸🇦 Saudi Arabia (KSA)</option>
+                    <option value="UAE">🇦🇪 United Arab Emirates</option>
+                    <option value="USA">🇺🇸 United States</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Selected Files List ─────────────────────────────────────────────────── -->
+    @if (_files.Count > 0)
+    {
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-700">@_files.Count file@(_files.Count == 1 ? "" : "s") selected</p>
+                        <p class="text-xs text-slate-400">@TotalQueueCount invoice@(TotalQueueCount == 1 ? "" : "s") will be queued</p>
+                    </div>
+                </div>
+                <button @onclick="ClearFiles"
+                        class="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Clear all
+                </button>
+            </div>
+
+            <!-- File rows -->
+            <div class="divide-y divide-slate-50">
+                @foreach (var f in _files)
+                {
+                    <div class="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors group">
+
+                        <!-- File type icon -->
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                                    @(f.IsPdf ? "bg-red-50" : f.IsImage ? "bg-violet-50" : "bg-slate-50")">
+                            <svg class="w-5 h-5 @(f.IsPdf ? "text-red-400" : f.IsImage ? "text-violet-400" : "text-slate-400")"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="@f.IconPath"/>
+                            </svg>
+                        </div>
+
+                        <!-- Name + metadata -->
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-700 truncate">@f.Name</p>
+                            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                <span class="text-xs text-slate-400">@f.FormattedSize</span>
+                                @if (f.IsPdf && f.PageCount.HasValue)
+                                {
+                                    <span class="text-xs text-slate-400">· @f.PageCount pg</span>
+                                    @if (_splitPdfs && f.PageCount > 1 && !f.IsScannedPdf)
+                                    {
+                                        <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-0.5">
+                                            &#8594; @f.PageCount invoices
+                                        </span>
+                                    }
+                                }
+                                @if (f.IsScannedPdf)
+                                {
+                                    <span class="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                                        Scanned PDF
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Status badge / remove button -->
+                        @if (f.State == FileState.Uploading)
+                        {
+                            <svg class="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                        }
+                        else if (f.State == FileState.Success)
+                        {
+                            <span class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold flex-shrink-0 max-w-[180px]">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                @f.Message
+                            </span>
+                        }
+                        else if (f.State == FileState.Failed)
+                        {
+                            <span class="flex items-center gap-1.5 text-red-500 text-xs font-medium flex-shrink-0 max-w-[160px]">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="truncate">@f.Message</span>
+                            </span>
+                        }
+                        else
+                        {
+                            <button @onclick="() => _files.Remove(f)"
+                                    class="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 p-1 flex-shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Footer: upload button OR completion banner -->
+            @if (_files.Any(f => f.State == FileState.Pending))
+            {
+                <div class="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4">
+                    <p class="text-xs text-slate-400">
+                        Files land in the inbox and the AI agent picks them up within seconds.
+                    </p>
+                    <button @onclick="UploadAllAsync" disabled="@_isUploading"
+                            class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700
+                                   disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold
+                                   rounded-xl transition-colors shadow-sm shadow-indigo-200 whitespace-nowrap flex-shrink-0">
+                        @if (_isUploading)
+                        {
+                            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                            <span>Uploading&hellip;</span>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <span>Upload &amp; Process (@_files.Count(f => f.State == FileState.Pending))</span>
+                        }
+                    </button>
+                </div>
+            }
+            else if (_files.Count > 0 && _files.All(f => f.State == FileState.Success || f.State == FileState.Failed))
+            {
+                <div class="px-5 py-4 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-emerald-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="text-sm font-bold">
+                            @_files.Count(f => f.State == FileState.Success) queued ·
+                            @_files.Count(f => f.State == FileState.Failed) failed
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button @onclick="ClearFiles"
+                                class="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors">
+                            Upload more
+                        </button>
+                        <a href="/"
+                           class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors">
+                            Dashboard
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- ── Hint cards (shown when no files are selected) ──────────────────────── -->
+    @if (_files.Count == 0)
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-indigo-700 mb-1">Bulk Upload</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Select up to 50 files at once — PDFs, images, or text invoices.</p>
+            </div>
+            <div class="rounded-2xl border border-violet-100 bg-violet-50 p-5">
+                <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-violet-700 mb-1">PDF Batch Split</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Toggle "Split multi-page PDFs" to extract each page as a separate invoice.</p>
+            </div>
+            <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                <div class="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-emerald-700 mb-1">Auto Processing</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Files land in the inbox and the AI agent picks them up within seconds.</p>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    // ── UI state ──────────────────────────────────────────────────────────────
+    private bool   _isDragging  = false;
+    private bool   _splitPdfs   = false;
+    private bool   _isUploading = false;
+    private string _region      = "SA";
+    private readonly List<UploadedFileModel> _files = [];
+
+    private static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
+        { ".pdf", ".txt", ".csv", ".xml", ".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp" };
+
+    private int TotalQueueCount => _files.Sum(f =>
+        _splitPdfs && f.IsPdf && (f.PageCount ?? 1) > 1 && !f.IsScannedPdf
+            ? (f.PageCount ?? 1)
+            : 1);
+
+    // ── File selection ─────────────────────────────────────────────────────────
+    private async Task OnFilesSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _isDragging = false;
+
+        foreach (var file in e.GetMultipleFiles(50))
+        {
+            // Skip duplicates already in the list
+            if (_files.Any(f => f.Name == file.Name && f.Size == file.Size))
+                continue;
+
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+
+            if (!Allowed.Contains(ext))
+            {
+                _files.Add(new UploadedFileModel(file, ext)
+                    { State = FileState.Failed, Message = $"{ext} not supported" });
+                continue;
+            }
+
+            int?  pageCount = null;
+            bool  scanned   = false;
+
+            if (ext == ".pdf")
+            {
+                try
+                {
+                    await using var s = file.OpenReadStream(20 * 1024 * 1024);
+                    var pages  = await PdfExtractor.ExtractPagesAsync(s);
+                    pageCount  = pages.Count > 0 ? pages[0].TotalPages : 0;
+                    scanned    = pages.Count > 0 && pages.All(p => p.IsScanned);
+                }
+                catch { /* leave pageCount null */ }
+            }
+
+            _files.Add(new UploadedFileModel(file, ext) { PageCount = pageCount, IsScannedPdf = scanned });
+        }
+
+        StateHasChanged();
+    }
+
+    // ── Upload ────────────────────────────────────────────────────────────────
+    private async Task UploadAllAsync()
+    {
+        _isUploading = true;
+        var inbox = Config["Watcher:InboxPath"] ?? "inbox";
+
+        if (!Directory.Exists(inbox))
+            Directory.CreateDirectory(inbox);
+
+        foreach (var f in _files.Where(x => x.State == FileState.Pending))
+        {
+            f.State = FileState.Uploading;
+            StateHasChanged();
+
+            try
+            {
+                var baseName = Path.GetFileNameWithoutExtension(f.Name).Replace(" ", "_");
+                var stamp    = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+                if (f.IsPdf && _splitPdfs && (f.PageCount ?? 1) > 1 && !f.IsScannedPdf)
+                {
+                    await SplitAndSavePdfAsync(f, inbox, baseName, stamp);
+                }
+                else
+                {
+                    var dest = Path.Combine(inbox, $"{baseName}_{stamp}{f.Ext}");
+                    await using var src = f.File.OpenReadStream(20 * 1024 * 1024);
+                    await using var fs  = File.Create(dest);
+                    await src.CopyToAsync(fs);
+                    f.State   = FileState.Success;
+                    f.Message = f.IsPdf && (f.PageCount ?? 0) > 1
+                        ? $"Queued ({f.PageCount} pages as 1)"
+                        : "Queued";
+                }
+            }
+            catch (Exception ex)
+            {
+                f.State   = FileState.Failed;
+                f.Message = ex.Message.Length > 50 ? ex.Message[..50] + "…" : ex.Message;
+            }
+
+            StateHasChanged();
+        }
+
+        _isUploading = false;
+        StateHasChanged();
+    }
+
+    private async Task SplitAndSavePdfAsync(UploadedFileModel f, string inbox, string baseName, long stamp)
+    {
+        await using var stream = f.File.OpenReadStream(20 * 1024 * 1024);
+        var pages = await PdfExtractor.ExtractPagesAsync(stream);
+
+        var saved = 0;
+        foreach (var page in pages.Where(p => !p.IsScanned))
+        {
+            var name    = $"{baseName}_p{page.PageNumber}of{page.TotalPages}_{stamp}_{_region}.txt";
+            var content = $"[Source: {f.Name} | Page {page.PageNumber}/{page.TotalPages} | Region: {_region}]\n\n{page.Text}";
+            await File.WriteAllTextAsync(Path.Combine(inbox, name), content);
+            saved++;
+        }
+
+        f.State   = FileState.Success;
+        f.Message = saved == 1 ? "Queued (1 invoice)" : $"Split into {saved} invoices";
+    }
+
+    private void ClearFiles() => _files.Clear();
+
+    // ── Inner model ───────────────────────────────────────────────────────────
+    private enum FileState { Pending, Uploading, Success, Failed }
+
+    private sealed class UploadedFileModel
+    {
+        public IBrowserFile File         { get; }
+        public string       Name         { get; }
+        public string       Ext          { get; }
+        public long         Size         => File.Size;
+        public int?         PageCount    { get; set; }
+        public bool         IsScannedPdf { get; set; }
+        public FileState    State        { get; set; } = FileState.Pending;
+        public string?      Message      { get; set; }
+
+        public bool IsPdf    => Ext == ".pdf";
+        public bool IsImage  => Ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tiff" or ".webp";
+
+        public string FormattedSize
+        {
+            get
+            {
+                if (Size < 1024) return $"{Size} B";
+                if (Size < 1024 * 1024) return $"{Size / 1024.0:F1} KB";
+                return $"{Size / (1024.0 * 1024):F1} MB";
+            }
+        }
+
+        public string IconPath => IsPdf
+            ? "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            : IsImage
+                ? "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                : "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z";
+
+        public UploadedFileModel(IBrowserFile file, string ext)
+        {
+            File = file;
+            Name = file.Name;
+            Ext  = ext;
+        }
+    }
+}

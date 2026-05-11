@@ -38,6 +38,7 @@ public static class DependencyInjection
         });
 
         services.AddSingleton<IDocumentReaderFactory, DocumentReaderFactory>();
+        services.AddSingleton<IPdfPageExtractor, PdfPigPageExtractor>();
         services.AddSingleton<IComplianceAgent, SemanticKernelComplianceAgent>();
         services.AddSingleton<IInvoiceRepository>(_ => new MariaDbInvoiceRepository(connectionString));
         services.AddSingleton<IAuditLogRepository>(_ => new MariaDbAuditLogRepository(connectionString));

@@ -1,0 +1,11 @@
+TAX INVOICE (فاتورة ضريبية)
+Invoice No: KSA-MAR-901
+Date: May 11, 2026
+
+Seller: Riyadh Trading Group
+VAT Number: 300012345600003
+
+Item: Warehouse Storage - Cold Zone
+Amount: 1,200.00 SAR
+VAT (15%): 180.00 SAR
+Total: 1,380.00 SAR

@@ -2,166 +2,305 @@
 @rendermode InteractiveServer
 @inject IInvoiceRepository InvoiceRepo
 @inject LiveCountService LiveCounts
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>Dashboard — Sahil AI</PageTitle>
 
-<div class="space-y-6 max-w-6xl">
+<div class="space-y-6 max-w-7xl">
 
-    <!-- Header -->
+    <!-- ── Header ─────────────────────────────────────────────────────────────── -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-slate-800">Compliance Dashboard</h1>
-            <p class="text-slate-500 text-sm mt-0.5">Real-time overview of invoice processing across all regions.</p>
+            <p class="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">Compliance Platform</p>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
+            <p class="text-slate-400 text-sm mt-0.5">@DateTime.UtcNow.ToString("dddd, dd MMMM yyyy") · UTC</p>
         </div>
-        <!-- Live indicator -->
-        <div class="flex items-center gap-2 text-sm @(LiveCounts.IsReady ? "text-emerald-600" : "text-slate-400")">
-            @if (LiveCounts.IsReady)
-            {
-                <span class="relative flex h-2.5 w-2.5">
+        @if (LiveCounts.IsReady)
+        {
+            <div class="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3.5 py-1.5 shadow-sm">
+                <span class="relative flex h-2 w-2">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span class="font-medium">Live — updates every 3 s</span>
-            }
-            else
-            {
+                <span class="text-xs font-semibold text-emerald-700">Live · 3s</span>
+            </div>
+        }
+        else
+        {
+            <div class="flex items-center gap-2 text-slate-400 text-sm">
                 <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
-                <span>Connecting…</span>
-            }
-        </div>
+                Connecting…
+            </div>
+        }
     </div>
 
+    <!-- ── Stat cards ─────────────────────────────────────────────────────────── -->
     @if (isLoading)
     {
-        <!-- Skeleton -->
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             @for (var i = 0; i < 6; i++)
             {
-                <div class="bg-white rounded-xl border border-slate-100 p-5 animate-pulse">
-                    <div class="h-8 bg-slate-100 rounded mb-2"></div>
-                    <div class="h-3 bg-slate-50 rounded w-2/3 mx-auto"></div>
+                <div class="bg-white rounded-2xl border border-slate-100 p-5 animate-pulse shadow-sm">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-9 h-9 bg-slate-100 rounded-lg"></div>
+                    </div>
+                    <div class="h-7 bg-slate-100 rounded w-1/2 mb-2"></div>
+                    <div class="h-3 bg-slate-50 rounded w-2/3"></div>
                 </div>
             }
         </div>
     }
     else
     {
-        <!-- Stat cards — values come from LiveCountService after first poll -->
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-            @StatCard("Total",     Total,              "slate")
-            @StatCard("Valid",     Count("VALID"),     "emerald")
-            @StatCard("Review",    Count("REVIEW"),    "amber")
-            @StatCard("Flagged",   Count("FLAGGED"),   "orange")
-            @StatCard("Duplicate", Count("DUPLICATE"), "red")
-            @StatCard("Approved",  Count("APPROVED"),  "indigo")
+            @StatCard("Total",     Total,             "slate",   "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z")
+            @StatCard("Valid",     Count("VALID"),    "emerald", "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z")
+            @StatCard("Review",    Count("REVIEW"),   "amber",   "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z")
+            @StatCard("Flagged",   Count("FLAGGED"),  "orange",  "M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z")
+            @StatCard("Duplicate", Count("DUPLICATE"),"red",    "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z")
+            @StatCard("Approved",  Count("APPROVED"), "indigo",  "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z")
         </div>
 
-        <!-- Review queue alert -->
+        <!-- ── Charts row ──────────────────────────────────────────────────────── -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+            <!-- Donut: Status Distribution -->
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-700">Status Distribution</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">All-time totals</p>
+                    </div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="relative h-40">
+                    <canvas id="status-donut"></canvas>
+                    @if (Total > 0)
+                    {
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span class="text-2xl font-extrabold text-slate-800 tabular-nums">@Total</span>
+                            <span class="text-xs text-slate-400 font-medium">total</span>
+                        </div>
+                    }
+                </div>
+                <!-- Legend -->
+                <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    @DonutLegendItem("Valid",     Count("VALID"),    "#10b981")
+                    @DonutLegendItem("Approved",  Count("APPROVED"), "#6366f1")
+                    @DonutLegendItem("Review",    Count("REVIEW"),   "#f59e0b")
+                    @DonutLegendItem("Flagged",   Count("FLAGGED"),  "#f97316")
+                    @DonutLegendItem("Duplicate", Count("DUPLICATE"),"#ef4444")
+                    @DonutLegendItem("Other",     Count("ERROR") + Count("PENDING"), "#94a3b8")
+                </div>
+            </div>
+
+            <!-- Bar: 7-day volume -->
+            <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-700">Processing Volume</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Last 7 days</p>
+                    </div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="h-[188px]">
+                    <canvas id="volume-bar"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Alerts ──────────────────────────────────────────────────────────── -->
         @if (Count("REVIEW") > 0)
         {
-            <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-3">
-                <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p class="text-sm text-amber-800 flex-1">
-                    <strong>@Count("REVIEW") invoice@(Count("REVIEW") == 1 ? "" : "s")</strong> awaiting human review.
-                </p>
-                <a href="/review" class="text-sm font-semibold text-amber-700 hover:text-amber-900 transition-colors">
-                    Go to Review Queue &rarr;
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 flex items-center gap-4 shadow-sm">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-amber-800">
+                        @Count("REVIEW") invoice@(Count("REVIEW") == 1 ? "" : "s") awaiting human review
+                    </p>
+                    <p class="text-xs text-amber-600 mt-0.5">Low-confidence extractions need your verification before approval.</p>
+                </div>
+                <a href="/review"
+                   class="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                    Review now
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                    </svg>
                 </a>
             </div>
         }
 
-        <!-- Recently arrived notification banner -->
         @if (recentArrivals.Count > 0)
         {
-            <div class="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
-                <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
-                </svg>
-                <p class="text-sm text-indigo-800 flex-1">
-                    <strong>@recentArrivals.Count new invoice@(recentArrivals.Count == 1 ? "" : "s")</strong> arrived since you loaded this page:
-                    @string.Join(", ", recentArrivals.TakeLast(3).Select(i => i.InvoiceNumber))
-                    @if (recentArrivals.Count > 3) { <span> +@(recentArrivals.Count - 3) more</span> }
-                </p>
+            <div class="bg-indigo-600 rounded-2xl px-5 py-3.5 flex items-center gap-4 shadow-lg shadow-indigo-200">
+                <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-white text-sm">
+                        @recentArrivals.Count new invoice@(recentArrivals.Count == 1 ? "" : "s") just arrived
+                    </p>
+                    <p class="text-indigo-200 text-xs mt-0.5 truncate">
+                        @string.Join(" · ", recentArrivals.TakeLast(3).Select(i => i.InvoiceNumber))
+                        @if (recentArrivals.Count > 3) { <span>+@(recentArrivals.Count - 3) more</span> }
+                    </p>
+                </div>
                 <button @onclick="() => recentArrivals.Clear()"
-                        class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">
-                    Dismiss
+                        class="flex-shrink-0 text-indigo-200 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                 </button>
             </div>
         }
 
-        <!-- Flagged / Duplicate table -->
-        @if (flagged.Any())
-        {
-            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-700">Recent Flagged &amp; Duplicates</h2>
-                    <span class="text-xs text-slate-400">@flagged.Count() records</span>
+        <!-- ── Flagged / Duplicate table ──────────────────────────────────────── -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-700">Flagged &amp; Duplicates</h2>
+                        <p class="text-xs text-slate-400">Invoices requiring manual attention</p>
+                    </div>
                 </div>
+                @if (flagged.Any())
+                {
+                    <span class="text-xs font-semibold text-slate-400 bg-slate-50 rounded-full px-2.5 py-1">
+                        @flagged.Count() records
+                    </span>
+                }
+            </div>
+
+            @if (!flagged.Any())
+            {
+                <div class="py-16 text-center">
+                    <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <p class="text-slate-600 font-semibold text-sm">All clear</p>
+                    <p class="text-slate-400 text-xs mt-1">No flagged or duplicate invoices found.</p>
+                </div>
+            }
+            else
+            {
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead>
-                            <tr class="bg-slate-50 text-xs text-slate-400 uppercase tracking-wide">
-                                <th class="px-6 py-3 text-left font-medium">Invoice #</th>
-                                <th class="px-6 py-3 text-left font-medium">Vendor</th>
-                                <th class="px-6 py-3 text-left font-medium">Region</th>
-                                <th class="px-6 py-3 text-right font-medium">Amount</th>
-                                <th class="px-6 py-3 text-left font-medium">Status</th>
-                                <th class="px-6 py-3 text-left font-medium">Received</th>
+                            <tr class="bg-slate-50/70 text-[11px] text-slate-400 uppercase tracking-widest">
+                                <th class="px-6 py-3 text-left font-semibold">Invoice #</th>
+                                <th class="px-6 py-3 text-left font-semibold">Vendor</th>
+                                <th class="px-6 py-3 text-left font-semibold">Region</th>
+                                <th class="px-6 py-3 text-right font-semibold">Amount</th>
+                                <th class="px-6 py-3 text-left font-semibold">Status</th>
+                                <th class="px-6 py-3 text-left font-semibold">Received</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
                             @foreach (var inv in flagged.Take(10))
                             {
-                                <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-3 font-mono text-xs text-indigo-600 font-medium">@inv.InvoiceNumber</td>
-                                    <td class="px-6 py-3 text-slate-700 max-w-xs truncate">@inv.VendorName</td>
-                                    <td class="px-6 py-3"><RegionBadge Region="@inv.Region" /></td>
-                                    <td class="px-6 py-3 text-right text-slate-600 font-medium">@inv.Currency @inv.GrandTotal.ToString("N2")</td>
-                                    <td class="px-6 py-3"><StatusBadge Status="@inv.Status" /></td>
-                                    <td class="px-6 py-3 text-slate-400 text-xs">@inv.CreatedAt.ToString("dd MMM yyyy")</td>
+                                <tr class="hover:bg-slate-50 transition-colors group">
+                                    <td class="px-6 py-3.5">
+                                        <span class="font-mono text-xs text-indigo-600 font-bold">@inv.InvoiceNumber</span>
+                                    </td>
+                                    <td class="px-6 py-3.5 text-slate-700 max-w-[200px] truncate font-medium text-sm">@inv.VendorName</td>
+                                    <td class="px-6 py-3.5"><RegionBadge Region="@inv.Region" /></td>
+                                    <td class="px-6 py-3.5 text-right font-bold text-slate-700 tabular-nums">
+                                        @inv.Currency @inv.GrandTotal.ToString("N2")
+                                    </td>
+                                    <td class="px-6 py-3.5"><StatusBadge Status="@inv.Status" /></td>
+                                    <td class="px-6 py-3.5 text-slate-400 text-xs">
+                                        @inv.CreatedAt.ToString("dd MMM yyyy")
+                                        <span class="text-slate-300 ml-1">@inv.CreatedAt.ToString("HH:mm")</span>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-            </div>
-        }
-        else
-        {
-            <div class="bg-white rounded-xl border border-slate-100 py-16 text-center">
-                <p class="text-slate-400 text-sm">No flagged or duplicate invoices. System is clean.</p>
-            </div>
-        }
+            }
+        </div>
     }
 </div>
 
 @code {
     private IEnumerable<Invoice> flagged = [];
+    private IReadOnlyList<(string Label, int Count)> dailyCounts = [];
     private bool isLoading = true;
     private readonly List<Invoice> recentArrivals = [];
+    private bool chartsInitialized = false;
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to live events before awaiting so we never miss a tick
         LiveCounts.CountsChanged    += OnCountsChanged;
         LiveCounts.NewReviewInvoice += OnNewReviewInvoice;
 
-        // Load flagged list (static, only updated on refresh)
-        flagged   = await InvoiceRepo.GetFlaggedAsync();
-        isLoading = false;
+        var t1 = InvoiceRepo.GetFlaggedAsync();
+        var t2 = InvoiceRepo.GetDailyCountsAsync();
+        await Task.WhenAll(t1, t2);
+        flagged      = await t1;
+        dailyCounts  = await t2;
+        isLoading    = false;
     }
 
-    // ── Live event handlers ───────────────────────────────────────────────────
-    private void OnCountsChanged()
-        => InvokeAsync(StateHasChanged);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!isLoading && !chartsInitialized)
+        {
+            chartsInitialized = true;
+            await InitChartsAsync();
+        }
+    }
+
+    private async Task InitChartsAsync()
+    {
+        // Donut
+        var donutLabels = new[] { "Valid", "Approved", "Review", "Flagged", "Duplicate", "Other" };
+        var donutData   = new[] { Count("VALID"), Count("APPROVED"), Count("REVIEW"), Count("FLAGGED"), Count("DUPLICATE"), Count("ERROR") + Count("PENDING") };
+        var donutColors = new[] { "#10b981", "#6366f1", "#f59e0b", "#f97316", "#ef4444", "#94a3b8" };
+        await JS.InvokeVoidAsync("SahilCharts.initDonut", "status-donut", donutLabels, donutData, donutColors);
+
+        // Bar
+        var barLabels = dailyCounts.Select(d => d.Label).ToArray();
+        var barData   = dailyCounts.Select(d => d.Count).ToArray();
+        await JS.InvokeVoidAsync("SahilCharts.initBar", "volume-bar", barLabels, barData);
+    }
+
+    private async void OnCountsChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+        if (chartsInitialized)
+        {
+            var donutData = new[] { Count("VALID"), Count("APPROVED"), Count("REVIEW"), Count("FLAGGED"), Count("DUPLICATE"), Count("ERROR") + Count("PENDING") };
+            await JS.InvokeVoidAsync("SahilCharts.updateDonut", donutData);
+        }
+    }
 
     private void OnNewReviewInvoice(Invoice inv)
     {
@@ -175,33 +314,72 @@
         LiveCounts.NewReviewInvoice -= OnNewReviewInvoice;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    // Read from LiveCountService (updated every 3 s by InvoicePollingService)
-    private int Total              => LiveCounts.Counts.Values.Sum();
-    private int Count(string key)  => LiveCounts.Counts.TryGetValue(key, out var v) ? v : 0;
+    private int Total             => LiveCounts.Counts.Values.Sum();
+    private int Count(string key) => LiveCounts.Counts.TryGetValue(key, out var v) ? v : 0;
 
-    // ── Stat card RenderFragment ───────────────────────────────────────────────
-    private RenderFragment StatCard(string label, int value, string color) => __builder =>
+    // ── Stat card RenderFragment ──────────────────────────────────────────────
+    private RenderFragment StatCard(string label, int value, string color, string iconPath) => __builder =>
     {
-        var (bg, text, border) = color switch
+        var (iconBg, iconText, numText, borderColor) = color switch
         {
-            "emerald" => ("bg-emerald-50", "text-emerald-700", "border-emerald-100"),
-            "amber"   => ("bg-amber-50",   "text-amber-700",   "border-amber-100"),
-            "orange"  => ("bg-orange-50",  "text-orange-700",  "border-orange-100"),
-            "red"     => ("bg-red-50",     "text-red-700",     "border-red-100"),
-            "indigo"  => ("bg-indigo-50",  "text-indigo-700",  "border-indigo-100"),
-            _         => ("bg-white",      "text-slate-700",   "border-slate-200"),
+            "emerald" => ("bg-emerald-100", "text-emerald-600", "text-emerald-700", "border-t-4 border-t-emerald-400"),
+            "amber"   => ("bg-amber-100",   "text-amber-600",   "text-amber-700",   "border-t-4 border-t-amber-400"),
+            "orange"  => ("bg-orange-100",  "text-orange-600",  "text-orange-700",  "border-t-4 border-t-orange-400"),
+            "red"     => ("bg-red-100",     "text-red-600",     "text-red-700",     "border-t-4 border-t-red-400"),
+            "indigo"  => ("bg-indigo-100",  "text-indigo-600",  "text-indigo-700",  "border-t-4 border-t-indigo-400"),
+            _         => ("bg-slate-100",   "text-slate-500",   "text-slate-700",   "border-t-4 border-t-slate-300"),
         };
 
         __builder.OpenElement(0, "div");
-        __builder.AddAttribute(1, "class", $"{bg} rounded-xl border {border} p-5 text-center transition-all duration-300");
-        __builder.OpenElement(2, "p");
-        __builder.AddAttribute(3, "class", $"text-3xl font-bold {text} tabular-nums");
-        __builder.AddContent(4, value.ToString());
+        __builder.AddAttribute(1, "class", $"bg-white rounded-2xl border border-slate-100 {borderColor} p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default");
+        // Icon row
+        __builder.OpenElement(2, "div");
+        __builder.AddAttribute(3, "class", "flex items-start justify-between mb-3");
+        __builder.OpenElement(4, "div");
+        __builder.AddAttribute(5, "class", $"w-9 h-9 rounded-xl {iconBg} flex items-center justify-center flex-shrink-0");
+        __builder.OpenElement(6, "svg");
+        __builder.AddAttribute(7, "class", $"w-5 h-5 {iconText}");
+        __builder.AddAttribute(8, "fill", "none");
+        __builder.AddAttribute(9, "stroke", "currentColor");
+        __builder.AddAttribute(10, "viewBox", "0 0 24 24");
+        __builder.OpenElement(11, "path");
+        __builder.AddAttribute(12, "stroke-linecap", "round");
+        __builder.AddAttribute(13, "stroke-linejoin", "round");
+        __builder.AddAttribute(14, "stroke-width", "2");
+        __builder.AddAttribute(15, "d", iconPath);
         __builder.CloseElement();
-        __builder.OpenElement(5, "p");
-        __builder.AddAttribute(6, "class", "text-xs text-slate-500 mt-1 font-medium uppercase tracking-wide");
+        __builder.CloseElement();
+        __builder.CloseElement();
+        __builder.CloseElement();
+        // Value
+        __builder.OpenElement(16, "p");
+        __builder.AddAttribute(17, "class", $"text-3xl font-extrabold {numText} tabular-nums leading-none");
+        __builder.AddContent(18, value.ToString("N0"));
+        __builder.CloseElement();
+        // Label
+        __builder.OpenElement(19, "p");
+        __builder.AddAttribute(20, "class", "text-xs text-slate-400 mt-1.5 font-semibold uppercase tracking-widest");
+        __builder.AddContent(21, label);
+        __builder.CloseElement();
+        __builder.CloseElement();
+    };
+
+    // ── Donut legend item ─────────────────────────────────────────────────────
+    private RenderFragment DonutLegendItem(string label, int value, string hex) => __builder =>
+    {
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", "flex items-center gap-1.5 text-xs");
+        __builder.OpenElement(2, "span");
+        __builder.AddAttribute(3, "class", "w-2 h-2 rounded-full flex-shrink-0");
+        __builder.AddAttribute(4, "style", $"background:{hex}");
+        __builder.CloseElement();
+        __builder.OpenElement(5, "span");
+        __builder.AddAttribute(6, "class", "text-slate-500 truncate");
         __builder.AddContent(7, label);
+        __builder.CloseElement();
+        __builder.OpenElement(8, "span");
+        __builder.AddAttribute(9, "class", "ml-auto font-bold text-slate-700 tabular-nums");
+        __builder.AddContent(10, value.ToString());
         __builder.CloseElement();
         __builder.CloseElement();
     };
