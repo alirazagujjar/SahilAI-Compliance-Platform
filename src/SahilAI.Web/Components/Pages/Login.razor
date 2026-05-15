@@ -1,0 +1,91 @@
+@page "/login"
+@layout AuthLayout
+@using SahilAI.Web.Components.Layout
+
+<div class="w-full max-w-sm mx-auto px-4">
+
+    <!-- Logo -->
+    <div class="flex flex-col items-center mb-8">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-extrabold text-xl text-white shadow-2xl shadow-indigo-900/60 mb-4">
+            SA
+        </div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">Sahil AI</h1>
+        <p class="text-sm text-slate-400 mt-1">Agentic Compliance Platform</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+
+        <h2 class="text-lg font-semibold text-white mb-1">Welcome back</h2>
+        <p class="text-sm text-slate-400 mb-6">Sign in to your account</p>
+
+        @if (_showResetSuccess)
+        {
+            <div class="mb-4 px-4 py-3 rounded-lg bg-emerald-900/40 border border-emerald-700/50 text-emerald-300 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Password reset successfully. Sign in with your new password.
+            </div>
+        }
+        @if (_showError)
+        {
+            <div class="mb-4 px-4 py-3 rounded-lg bg-red-900/40 border border-red-700/50 text-red-300 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Invalid email or password.
+            </div>
+        }
+
+        <!-- Login form — posts to the minimal-API endpoint so cookie is set in a real HTTP response -->
+        <form method="post" action="/api/auth/login">
+            <div class="space-y-4">
+                <div>
+                    <label for="email" class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                        Email address
+                    </label>
+                    <input id="email" name="email" type="email" autocomplete="email" required
+                           class="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                           placeholder="you@company.com" />
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="password" class="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            Password
+                        </label>
+                        <a href="/forgot-password" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                            Forgot password?
+                        </a>
+                    </div>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required
+                           class="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                           placeholder="••••••••" />
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors shadow-lg shadow-indigo-900/40 mt-2">
+                    Sign in
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Footer hint -->
+    <p class="text-center text-xs text-slate-600 mt-6">
+        ZATCA Phase 2 · Saudi Arabia · v2.0
+    </p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? _error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "reset")]
+    private string? _reset { get; set; }
+
+    private bool _showError        => _error == "1";
+    private bool _showResetSuccess => _reset == "1";
+}

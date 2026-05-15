@@ -18,13 +18,13 @@ public sealed class MariaDbInvoiceRepository : IInvoiceRepository
     {
         const string sql = """
             INSERT INTO Invoices
-                (InvoiceNumber, VendorName, VendorTrn, InvoiceDate, Subtotal, TaxAmount,
+                (TenantId, InvoiceNumber, VendorName, VendorTrn, InvoiceDate, Subtotal, TaxAmount,
                  GrandTotal, TaxRate, Currency, Status, Region, ConfidenceScore,
                  DocumentLanguage, FileType, ZatcaUuid, PreviousInvoiceHash,
                  XmlPath, QrCodeBase64, AnomalyFlags,
                  ReasoningLog, SourceFile, CreatedAt, IsApproved)
             VALUES
-                (@InvoiceNumber, @VendorName, @VendorTrn, @InvoiceDate, @Subtotal, @TaxAmount,
+                (@TenantId, @InvoiceNumber, @VendorName, @VendorTrn, @InvoiceDate, @Subtotal, @TaxAmount,
                  @GrandTotal, @TaxRate, @Currency, @Status, @Region, @ConfidenceScore,
                  @DocumentLanguage, @FileType, @ZatcaUuid, @PreviousInvoiceHash,
                  @XmlPath, @QrCodeBase64, @AnomalyFlags,
@@ -199,6 +199,23 @@ public sealed class MariaDbInvoiceRepository : IInvoiceRepository
             result.Add((label, count));
         }
         return result;
+    }
+
+    public async Task<IEnumerable<Invoice>> GetByVendorTrnAsync(string vendorTrn)
+    {
+        const string sql = """
+            SELECT * FROM Invoices WHERE VendorTrn = @VendorTrn ORDER BY CreatedAt DESC LIMIT 200;
+            """;
+        await using var conn = new MySqlConnection(_connectionString);
+        return await conn.QueryAsync<Invoice>(sql, new { VendorTrn = vendorTrn });
+    }
+
+    public async Task<IReadOnlyDictionary<string, int>> GetStatusCountsByVendorTrnAsync(string vendorTrn)
+    {
+        const string sql = "SELECT Status, COUNT(*) AS Cnt FROM Invoices WHERE VendorTrn = @VendorTrn GROUP BY Status;";
+        await using var conn = new MySqlConnection(_connectionString);
+        var rows = await conn.QueryAsync<(string Status, int Cnt)>(sql, new { VendorTrn = vendorTrn });
+        return rows.ToDictionary(r => r.Status, r => r.Cnt);
     }
 
     public async Task UpdateCoreFieldsAsync(

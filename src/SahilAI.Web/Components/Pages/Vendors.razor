@@ -1,0 +1,243 @@
+@page "/vendors"
+@attribute [Authorize(Roles = "Admin")]
+@inject IVendorRepository VendorRepo
+@inject IVendorInviteRepository InviteRepo
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Vendors — Sahil AI</PageTitle>
+
+<div class="max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Vendor Management</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Invite suppliers and track their portal access</p>
+        </div>
+        <button @onclick="() => _showInviteForm = !_showInviteForm"
+                class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl px-4 py-2.5 text-sm transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Invite Vendor
+        </button>
+    </div>
+
+    @if (_invited)
+    {
+        <div class="mb-4 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Invite sent! The vendor will receive an email with a registration link valid for 7 days.
+        </div>
+    }
+
+    <!-- Invite form -->
+    @if (_showInviteForm)
+    {
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm">
+            <h2 class="text-base font-semibold text-slate-700 mb-4">Send Vendor Invitation</h2>
+            <form method="post" action="/api/vendor/invite">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Company Name</label>
+                        <input name="company" type="text" required placeholder="Acme Corporation"
+                               value="@_inviteCompany" @oninput="e => _inviteCompany = e.Value?.ToString() ?? string.Empty"
+                               class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
+                        <input name="email" type="email" required placeholder="finance@company.com"
+                               value="@_inviteEmail" @oninput="e => _inviteEmail = e.Value?.ToString() ?? string.Empty"
+                               class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors">
+                        Send Invitation
+                    </button>
+                    <button type="button" @onclick="() => _showInviteForm = false"
+                            class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    }
+
+    <!-- Vendors table -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 flex-1">
+                <h2 class="text-sm font-semibold text-slate-700 whitespace-nowrap">Registered Vendors</h2>
+                <div class="relative flex-1 max-w-xs">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                    </svg>
+                    <input @bind="_search" @bind:event="oninput" placeholder="Search vendors…"
+                           class="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-700
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent" />
+                </div>
+            </div>
+            <span class="text-xs text-slate-400 whitespace-nowrap">@_filtered.Count() of @_vendors.Count</span>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="px-6 py-12 text-center text-slate-400 text-sm">Loading…</div>
+        }
+        else if (_vendors.Count == 0)
+        {
+            <div class="px-6 py-12 text-center">
+                <svg class="w-10 h-10 text-slate-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p class="text-slate-400 text-sm">No vendors yet. Send your first invitation above.</p>
+            </div>
+        }
+        else if (!_filtered.Any())
+        {
+            <div class="px-6 py-10 text-center text-slate-400 text-sm">No vendors match "@_search".</div>
+        }
+        else
+        {
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/60">
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendor</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">TRN</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Region</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var v in _filtered)
+                    {
+                        <tr class="hover:bg-slate-50/60 transition-colors">
+                            <td class="px-6 py-3.5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs flex-shrink-0">
+                                        @(v.Name.Length > 0 ? v.Name[0].ToString().ToUpper() : "V")
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-slate-800">@v.Name</p>
+                                        @if (!string.IsNullOrEmpty(v.Email))
+                                        {
+                                            <p class="text-xs text-slate-400">@v.Email</p>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3.5">
+                                <span class="font-mono text-xs text-slate-600 bg-slate-100 rounded px-2 py-0.5">@v.TaxRegNumber</span>
+                            </td>
+                            <td class="px-4 py-3.5 text-slate-600 text-xs">@v.Region</td>
+                            <td class="px-4 py-3.5">
+                                @if (v.IsVerified)
+                                {
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Verified
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Pending
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-4 py-3.5 text-slate-400 text-xs">@v.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td class="px-4 py-3.5 text-right">
+                                @if (!v.IsVerified)
+                                {
+                                    <button @onclick="() => PreFillInvite(v)"
+                                            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold
+                                                   bg-indigo-50 hover:bg-indigo-100 border border-indigo-200
+                                                   rounded-lg px-2.5 py-1 transition-colors whitespace-nowrap">
+                                        Send Invite
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- Pending Invites -->
+    @if (_pendingInvites.Count > 0)
+    {
+        <div class="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Pending Invitations</h2>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @foreach (var inv in _pendingInvites)
+                {
+                    <div class="px-6 py-3.5 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">@inv.Email</p>
+                            @if (!string.IsNullOrEmpty(inv.CompanyName))
+                            {
+                                <p class="text-xs text-slate-400">@inv.CompanyName</p>
+                            }
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400">Expires @inv.ExpiresAt.ToString("dd MMM")</p>
+                            <span class="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 font-semibold">Awaiting registration</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "invited")] private string? _invitedParam { get; set; }
+    private bool _invited => _invitedParam == "1";
+
+    private bool   _showInviteForm;
+    private bool   _loading = true;
+    private string _search  = string.Empty;
+    private string _inviteCompany = string.Empty;
+    private string _inviteEmail   = string.Empty;
+
+    private List<Vendor>       _vendors        = [];
+    private List<VendorInvite> _pendingInvites = [];
+    private int _tenantId = 1;
+
+    private IEnumerable<Vendor> _filtered => string.IsNullOrWhiteSpace(_search)
+        ? _vendors
+        : _vendors.Where(v => v.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                            || (v.Email ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
+                            || v.TaxRegNumber.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state     = await AuthState.GetAuthenticationStateAsync();
+        var tenantStr = state.User.FindFirst("tenant_id")?.Value;
+        if (!string.IsNullOrEmpty(tenantStr) && int.TryParse(tenantStr, out var tid))
+            _tenantId = tid;
+
+        _vendors        = (await VendorRepo.GetAllByTenantAsync(_tenantId)).ToList();
+        var allInvites  = (await InviteRepo.GetByTenantAsync(_tenantId)).ToList();
+        _pendingInvites = allInvites.Where(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow).ToList();
+        _loading        = false;
+    }
+
+    private void PreFillInvite(Vendor v)
+    {
+        _inviteCompany  = v.Name;
+        _inviteEmail    = v.Email ?? string.Empty;
+        _showInviteForm = true;
+    }
+}

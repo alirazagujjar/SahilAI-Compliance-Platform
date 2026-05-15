@@ -3,6 +3,7 @@ namespace SahilAI.Domain.Entities;
 public class Vendor
 {
     public int Id { get; set; }
+    public int TenantId { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
     public string TaxRegNumber { get; set; } = string.Empty;
     public string Region { get; set; } = ComplianceRegion.UAE;

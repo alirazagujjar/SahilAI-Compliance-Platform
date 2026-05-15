@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
+using BC = BCrypt.Net.BCrypt;
 
 namespace SahilAI.Infrastructure.Persistence;
 
@@ -160,6 +161,62 @@ public sealed class DatabaseInitializer
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
+        await conn.ExecuteAsync("""
+            CREATE TABLE IF NOT EXISTS Tenants (
+                Id        INT AUTO_INCREMENT PRIMARY KEY,
+                Name      VARCHAR(255) NOT NULL,
+                Slug      VARCHAR(100) NOT NULL UNIQUE,
+                Plan      VARCHAR(50)  NOT NULL DEFAULT 'starter',
+                IsActive  TINYINT(1)   NOT NULL DEFAULT 1,
+                CreatedAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+
+        await conn.ExecuteAsync("""
+            CREATE TABLE IF NOT EXISTS Users (
+                Id           INT AUTO_INCREMENT PRIMARY KEY,
+                TenantId     INT          NOT NULL,
+                Email        VARCHAR(255) NOT NULL UNIQUE,
+                PasswordHash VARCHAR(255) NOT NULL,
+                FullName     VARCHAR(255) NOT NULL,
+                Role         VARCHAR(50)  NOT NULL DEFAULT 'Reviewer',
+                IsActive     TINYINT(1)   NOT NULL DEFAULT 1,
+                LastLoginAt  DATETIME,
+                CreatedAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_users_tenant FOREIGN KEY (TenantId) REFERENCES Tenants(Id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+
+        await conn.ExecuteAsync("""
+            CREATE TABLE IF NOT EXISTS VendorInvites (
+                Id          INT AUTO_INCREMENT PRIMARY KEY,
+                Email       VARCHAR(255) NOT NULL,
+                Token       VARCHAR(128) NOT NULL UNIQUE,
+                TenantId    INT          NOT NULL DEFAULT 1,
+                CompanyName VARCHAR(255),
+                IsUsed      TINYINT(1)   NOT NULL DEFAULT 0,
+                ExpiresAt   DATETIME     NOT NULL,
+                InvitedById INT          NOT NULL,
+                CreatedAt   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_vi_token (Token),
+                INDEX idx_vi_tenant (TenantId)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+
+        await conn.ExecuteAsync("""
+            CREATE TABLE IF NOT EXISTS PasswordResetTokens (
+                Id        INT AUTO_INCREMENT PRIMARY KEY,
+                UserId    INT          NOT NULL,
+                Token     VARCHAR(128) NOT NULL UNIQUE,
+                ExpiresAt DATETIME     NOT NULL,
+                IsUsed    TINYINT(1)   NOT NULL DEFAULT 0,
+                CreatedAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_prt_user FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+                INDEX idx_token (Token),
+                INDEX idx_user_active (UserId, IsUsed)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+
         await MigrateAsync(conn);
         await SeedDataAsync(conn);
 
@@ -206,10 +263,48 @@ public sealed class DatabaseInitializer
                 ADD COLUMN IF NOT EXISTS ExpectedTaxRate DECIMAL(5,2)  NULL    AFTER CountryCode,
                 ADD COLUMN IF NOT EXISTS MandatoryTRN    TINYINT(1)    NOT NULL DEFAULT 1 AFTER ExpectedTaxRate;
             """);
+
+        // v2.0: Multi-tenancy — TenantId on core tables + VendorId on Users
+        await conn.ExecuteAsync("""
+            ALTER TABLE Invoices
+                ADD COLUMN IF NOT EXISTS TenantId INT NOT NULL DEFAULT 1 AFTER Id;
+            """);
+
+        await conn.ExecuteAsync("""
+            ALTER TABLE Vendors
+                ADD COLUMN IF NOT EXISTS TenantId INT NOT NULL DEFAULT 1 AFTER Id;
+            """);
+
+        await conn.ExecuteAsync("""
+            ALTER TABLE ProcessingQueue
+                ADD COLUMN IF NOT EXISTS TenantId INT NOT NULL DEFAULT 1 AFTER Id;
+            """);
+
+        await conn.ExecuteAsync("""
+            ALTER TABLE Users
+                ADD COLUMN IF NOT EXISTS VendorId INT NULL AFTER TenantId;
+            """);
     }
 
     private static async Task SeedDataAsync(MySqlConnection conn)
     {
+        // Seed default tenant
+        await conn.ExecuteAsync("""
+            INSERT IGNORE INTO Tenants (Id, Name, Slug, Plan) VALUES (1, 'Default', 'default', 'enterprise');
+            """);
+
+        // Seed admin user if not present
+        var adminExists = await conn.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM Users WHERE Email = 'admin@sahilai.com';");
+        if (adminExists == 0)
+        {
+            var hash = BC.HashPassword("Admin@123", workFactor: 11);
+            await conn.ExecuteAsync("""
+                INSERT INTO Users (TenantId, Email, PasswordHash, FullName, Role)
+                VALUES (1, 'admin@sahilai.com', @Hash, 'System Admin', 'Admin');
+                """, new { Hash = hash });
+        }
+
         await conn.ExecuteAsync("""
             INSERT IGNORE INTO ValidationRules
                 (Region, RuleCode, RuleName, Severity, CountryCode, ExpectedTaxRate, MandatoryTRN)

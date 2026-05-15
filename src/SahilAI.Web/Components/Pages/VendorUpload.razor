@@ -1,0 +1,206 @@
+@page "/vendor/upload"
+@layout VendorLayout
+@attribute [Authorize(Roles = "Vendor")]
+@using SahilAI.Web.Components.Layout
+@inject IConfiguration Config
+@inject AuthenticationStateProvider AuthState
+@inject IVendorRepository VendorRepo
+@inject NavigationManager Nav
+
+<PageTitle>Submit Invoice — Vendor Portal</PageTitle>
+
+<div class="max-w-2xl mx-auto">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Submit Invoice</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Upload a PDF or image — our AI will extract and validate the data automatically</p>
+    </div>
+
+    @if (_submitted)
+    {
+        <!-- Success state -->
+        <div class="bg-white border border-emerald-200 rounded-2xl p-8 shadow-sm text-center">
+            <div class="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h2 class="text-lg font-semibold text-slate-800 mb-2">Invoice submitted!</h2>
+            <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+                Your invoice has been queued for processing. Our AI will extract and validate the data —
+                you'll see it appear in <strong>My Invoices</strong> once complete (usually within a minute).
+            </p>
+            <div class="flex items-center justify-center gap-3">
+                <button @onclick="Reset"
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors">
+                    Submit another
+                </button>
+                <a href="/vendor/invoices" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                    View my invoices →
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Upload zone -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700 mb-4">Select File</h2>
+
+                <!-- Drop zone -->
+                <div class="relative border-2 border-dashed rounded-xl transition-colors @(_isDragging ? "border-emerald-400 bg-emerald-50/50" : "border-slate-200 bg-slate-50/50") hover:border-emerald-300"
+                     @ondragover:preventDefault @ondragenter="() => _isDragging = true" @ondragleave="() => _isDragging = false">
+                    <div class="px-6 py-10 text-center pointer-events-none">
+                        <svg class="w-10 h-10 mx-auto mb-3 @(_isDragging ? "text-emerald-400" : "text-slate-300")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        @if (_file is null)
+                        {
+                            <p class="text-sm font-medium text-slate-600">Drop your invoice here or <span class="text-emerald-600">click to browse</span></p>
+                            <p class="text-xs text-slate-400 mt-1">PDF, PNG, JPG up to 20 MB</p>
+                        }
+                        else
+                        {
+                            <p class="text-sm font-semibold text-emerald-700">@_file.Name</p>
+                            <p class="text-xs text-slate-400 mt-1">@FormatSize(_file.Size) · @_file.ContentType</p>
+                        }
+                    </div>
+                    <InputFile OnChange="OnFileSelected" accept=".pdf,.png,.jpg,.jpeg"
+                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" style="font-size:0" />
+                </div>
+
+                @if (_errorMsg is not null)
+                {
+                    <p class="mt-3 text-sm text-red-600">@_errorMsg</p>
+                }
+            </div>
+
+            <!-- Region selector -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-4">
+                <label class="text-xs font-medium text-slate-500 uppercase tracking-wider w-24">Region</label>
+                <select @bind="_region" class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="SA">Saudi Arabia (ZATCA)</option>
+                    <option value="UAE">UAE (FTA)</option>
+                    <option value="ALL">International</option>
+                </select>
+            </div>
+
+            <!-- Submit -->
+            <div class="px-6 py-4 flex items-center gap-4">
+                <button @onclick="SubmitAsync" disabled="@(_file is null || _uploading)"
+                        class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors">
+                    @if (_uploading)
+                    {
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span>Submitting…</span>
+                    }
+                    else
+                    {
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span>Submit Invoice</span>
+                    }
+                </button>
+                @if (_file is not null && !_uploading)
+                {
+                    <button @onclick="() => _file = null" class="text-sm text-slate-400 hover:text-slate-600 transition-colors">Clear</button>
+                }
+            </div>
+        </div>
+
+        <!-- Info box -->
+        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+            <p class="font-semibold mb-1">What happens next?</p>
+            <ol class="list-decimal list-inside space-y-0.5 text-blue-600 text-xs">
+                <li>Your file is securely queued for processing</li>
+                <li>Our AI extracts invoice data and validates ZATCA compliance</li>
+                <li>If confidence is high, it's approved automatically</li>
+                <li>Low-confidence invoices are flagged for human review</li>
+            </ol>
+        </div>
+    }
+</div>
+
+@code {
+    private IBrowserFile? _file;
+    private bool  _isDragging;
+    private bool  _uploading;
+    private bool  _submitted;
+    private string _region   = "SA";
+    private string? _errorMsg;
+    private int   _tenantId  = 1;
+    private const long MaxBytes = 20L * 1024 * 1024;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state     = await AuthState.GetAuthenticationStateAsync();
+        var user      = state.User;
+        var tenantStr = user.FindFirst("tenant_id")?.Value;
+        if (!string.IsNullOrEmpty(tenantStr) && int.TryParse(tenantStr, out var tid))
+            _tenantId = tid;
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _isDragging = false;
+        _errorMsg   = null;
+        var selected = e.GetMultipleFiles(1).FirstOrDefault();
+        if (selected is null) return;
+        if (selected.Size > MaxBytes) { _errorMsg = "File is too large. Maximum 20 MB allowed."; return; }
+        _file = selected;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_file is null) return;
+        _uploading = true;
+        _errorMsg  = null;
+
+        try
+        {
+            var inboxPath = Config["Watcher:InboxPath"] ?? "inbox";
+            Directory.CreateDirectory(inboxPath);
+
+            var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var ext   = Path.GetExtension(_file.Name).ToLowerInvariant();
+            var safe  = Path.GetFileNameWithoutExtension(_file.Name)
+                            .Replace(" ", "_").Replace("..", "_");
+            var dest  = Path.Combine(inboxPath, $"{safe}_{stamp}_{_region}_t{_tenantId}{ext}");
+
+            await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write);
+            await using var stream = _file.OpenReadStream(MaxBytes);
+            await stream.CopyToAsync(fs);
+
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _file      = null;
+        _submitted = false;
+        _errorMsg  = null;
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024)     return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

@@ -1,7 +1,8 @@
 @page "/upload"
-@rendermode InteractiveServer
+@attribute [Authorize]
 @inject IConfiguration Config
 @inject IPdfPageExtractor PdfExtractor
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Upload Invoices — Sahil AI</PageTitle>
 
@@ -299,6 +300,15 @@
     private bool   _splitPdfs   = false;
     private bool   _isUploading = false;
     private string _region      = "SA";
+    private int    _tenantId    = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var claim = state.User.FindFirst("tenant_id")?.Value;
+        if (!string.IsNullOrEmpty(claim) && int.TryParse(claim, out var tid))
+            _tenantId = tid;
+    }
     private readonly List<UploadedFileModel> _files = [];
 
     private static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
@@ -375,7 +385,7 @@
                 }
                 else
                 {
-                    var dest = Path.Combine(inbox, $"{baseName}_{stamp}{f.Ext}");
+                    var dest = Path.Combine(inbox, $"{baseName}_{stamp}_{_region}_t{_tenantId}{f.Ext}");
                     await using var src = f.File.OpenReadStream(20 * 1024 * 1024);
                     await using var fs  = File.Create(dest);
                     await src.CopyToAsync(fs);
@@ -406,7 +416,7 @@
         var saved = 0;
         foreach (var page in pages.Where(p => !p.IsScanned))
         {
-            var name    = $"{baseName}_p{page.PageNumber}of{page.TotalPages}_{stamp}_{_region}.txt";
+            var name    = $"{baseName}_p{page.PageNumber}of{page.TotalPages}_{stamp}_{_region}_t{_tenantId}.txt";
             var content = $"[Source: {f.Name} | Page {page.PageNumber}/{page.TotalPages} | Region: {_region}]\n\n{page.Text}";
             await File.WriteAllTextAsync(Path.Combine(inbox, name), content);
             saved++;

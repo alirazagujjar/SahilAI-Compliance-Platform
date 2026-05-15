@@ -8,6 +8,7 @@ using SahilAI.Domain.Documents;
 using SahilAI.Domain.Interfaces;
 using SahilAI.Infrastructure.AI;
 using SahilAI.Infrastructure.Documents;
+using SahilAI.Infrastructure.Email;
 using SahilAI.Infrastructure.Persistence;
 
 namespace SahilAI.Infrastructure;
@@ -46,6 +47,11 @@ public static class DependencyInjection
         services.AddSingleton<IVendorRepository>(_ => new MariaDbVendorRepository(connectionString));
         services.AddSingleton<IProcessingQueueRepository>(_ => new MariaDbProcessingQueueRepository(connectionString));
         services.AddSingleton<IValidationRulesRepository>(_ => new MariaDbValidationRulesRepository(connectionString));
+        services.AddSingleton<IUserRepository>(_ => new MariaDbUserRepository(connectionString));
+        services.AddSingleton<ITenantRepository>(_ => new MariaDbTenantRepository(connectionString));
+        services.AddSingleton<IPasswordResetTokenRepository>(_ => new MariaDbPasswordResetTokenRepository(connectionString));
+        services.AddSingleton<IVendorInviteRepository>(_ => new MariaDbVendorInviteRepository(connectionString));
+        services.AddSingleton<IEmailService, SmtpEmailService>();
 
         // Phase 2 compliance services
         services.AddSingleton<IZatcaComplianceService, ZatcaComplianceService>();

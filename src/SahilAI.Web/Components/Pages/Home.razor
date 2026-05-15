@@ -1,5 +1,5 @@
 @page "/"
-@rendermode InteractiveServer
+@attribute [Authorize]
 @inject IInvoiceRepository InvoiceRepo
 @inject LiveCountService LiveCounts
 @inject IJSRuntime JS

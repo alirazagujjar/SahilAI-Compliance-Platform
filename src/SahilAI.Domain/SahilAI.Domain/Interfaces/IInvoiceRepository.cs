@@ -43,4 +43,10 @@ public interface IInvoiceRepository
 
     /// Returns invoice count per calendar day for the last 7 days, oldest→newest.
     Task<IReadOnlyList<(string Label, int Count)>> GetDailyCountsAsync();
+
+    /// Returns all invoices for a given vendor TRN, most recent first.
+    Task<IEnumerable<Invoice>> GetByVendorTrnAsync(string vendorTrn);
+
+    /// Returns status counts filtered to a single vendor TRN.
+    Task<IReadOnlyDictionary<string, int>> GetStatusCountsByVendorTrnAsync(string vendorTrn);
 }

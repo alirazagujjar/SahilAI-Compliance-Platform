@@ -2,7 +2,8 @@ namespace SahilAI.Domain.Entities;
 
 public class Invoice
 {
-    public int Id { get; set; }
+    public int Id       { get; set; }
+    public int TenantId { get; set; } = 1;
     public string InvoiceNumber { get; set; } = string.Empty;
     public string VendorName { get; set; } = string.Empty;
     public string VendorTrn { get; set; } = string.Empty;

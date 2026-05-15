@@ -65,6 +65,11 @@ public sealed class InvoiceProcessingService : IInvoiceProcessingService
         var fileName = Path.GetFileName(filePath);
         _logger.LogInformation("Processing {File} for region {Region}", fileName, region);
 
+        var tenantId = 1;
+        var tenantMatch = System.Text.RegularExpressions.Regex.Match(fileName, @"_t(\d+)");
+        if (tenantMatch.Success && int.TryParse(tenantMatch.Groups[1].Value, out var parsed))
+            tenantId = parsed;
+
         DocumentContent document;
         try
         {
@@ -111,8 +116,9 @@ public sealed class InvoiceProcessingService : IInvoiceProcessingService
             return Fail("PARSE_ERROR", "Agent could not extract invoice data from document.");
         }
 
-        // Stamp the file type onto the invoice
+        // Stamp the file type and tenant onto the invoice
         invoice.FileType = document.FileType;
+        invoice.TenantId = tenantId;
 
         // NOT_SUPPORTED_FORMAT is terminal — skip confidence gate and validation entirely
         var anomalies = new List<string>();
@@ -224,9 +230,10 @@ public sealed class InvoiceProcessingService : IInvoiceProcessingService
             }
         }
 
-        // Upsert vendor
+        // Upsert vendor — carry TenantId so the vendor row is always linked to the right tenant
         await _vendors.UpsertAsync(new Vendor
         {
+            TenantId      = invoice.TenantId,
             Name          = invoice.VendorName,
             TaxRegNumber  = invoice.VendorTrn,
             Region        = region,

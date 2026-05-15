@@ -1,5 +1,6 @@
 @inject NavigationManager Nav
 @inject LiveCountService LiveCounts
+@inject AuthenticationStateProvider AuthState
 @implements IDisposable
 
 <aside class="w-60 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col select-none">
@@ -37,6 +38,29 @@
                 </span>
             }
         </NavLink>
+
+        @if (_isAdmin)
+        {
+            <p class="px-3 pt-4 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Management</p>
+            <NavLink href="/vendors"
+                     class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                     ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="flex-1">Vendor Invites</span>
+            </NavLink>
+            <NavLink href="/vendor-management"
+                     class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all text-sm font-medium"
+                     ActiveClass="!bg-indigo-600/20 !text-indigo-300 !border-l-2 !border-indigo-400 !pl-[10px]">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span class="flex-1">Vendor Directory</span>
+            </NavLink>
+        }
 
         <p class="px-3 pt-4 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Processing</p>
 
@@ -111,19 +135,19 @@
 </aside>
 
 @code {
-    private int ReviewCount    => LiveCounts.Counts.TryGetValue("REVIEW",   out var r) ? r : 0;
-    private int ProcessedCount => (LiveCounts.Counts.TryGetValue("VALID",    out var v) ? v : 0)
-                                + (LiveCounts.Counts.TryGetValue("APPROVED", out var a) ? a : 0);
+    private int  ReviewCount    => LiveCounts.Counts.TryGetValue("REVIEW",   out var r) ? r : 0;
+    private int  ProcessedCount => (LiveCounts.Counts.TryGetValue("VALID",    out var v) ? v : 0)
+                                 + (LiveCounts.Counts.TryGetValue("APPROVED", out var a) ? a : 0);
+    private bool _isAdmin;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         LiveCounts.CountsChanged += OnLiveUpdate;
+        var state = await AuthState.GetAuthenticationStateAsync();
+        _isAdmin  = state.User.IsInRole("Admin");
     }
 
     private void OnLiveUpdate() => InvokeAsync(StateHasChanged);
 
-    public void Dispose()
-    {
-        LiveCounts.CountsChanged -= OnLiveUpdate;
-    }
+    public void Dispose() => LiveCounts.CountsChanged -= OnLiveUpdate;
 }
